@@ -244,7 +244,6 @@
 /misc/Test
 /misc/config.cache
 /misc/config.status
-/misc/system.list
 /misc/linux.system.cache
 /misc/wx-config
 /misc/config.log
@@ -255,7 +254,6 @@
 /misc/*.aps
 /misc/*.ncb
 /misc/*.pro
-/misc/*.opt
 /misc/Release
 /misc/Debug
 /misc/ReleaseDLL
@@ -416,3 +414,4 @@
 
 # /utils/wxrc/
 /utils/wxrc/*.sln
+/.svn/

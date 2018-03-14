@@ -2132,6 +2132,10 @@ ParseValueInPixels(wxXmlResourceHandlerImpl* impl,
         return defaultValue;
     }
 
+    // ChT: Keine Umrechnung, wenn es um absolute Werte geht
+    if (param == "cellpos" || param == "cellspan")
+      return value;
+
     if ( !windowToUse )
         windowToUse = impl->GetParentAsWindow();
 

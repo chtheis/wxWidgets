@@ -74,7 +74,7 @@ wxObject *wxNotebookXmlHandler::DoCreateResource()
             {
                 m_notebook->AddPage(wnd, GetText(wxT("label")),
                                          GetBool(wxT("selected")));
-                if ( HasParam(wxT("bitmap")) )
+                if ( HasParam(wxT("bitmap")) && !GetParamValue(wxT("bitmap")).IsEmpty() )
                 {
                     wxBitmap bmp = GetBitmap(wxT("bitmap"), wxART_OTHER);
                     wxImageList *imgList = m_notebook->GetImageList();
