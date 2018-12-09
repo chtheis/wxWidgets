@@ -221,6 +221,7 @@ if(NOT WIN32)
     if(wxUSE_LIBICONV AND NOT APPLE)
         find_package(Iconv REQUIRED)
         set(HAVE_ICONV ON)
+        set(ICONV_CONST " ")
         if(ICONV_SECOND_ARGUMENT_IS_CONST)
             set(ICONV_CONST "const")
         endif()
@@ -310,7 +311,7 @@ if(NOT WIN32)
             statfs(\"/\", &fs);"
             HAVE_STATFS_DECL)
     else()
-        # TODO: implment statvfs checks
+        # TODO: implement statvfs checks
         if(HAVE_STATVFS)
             set(WX_STATFS_T statvfs_t)
         endif()
@@ -554,7 +555,7 @@ endforeach()
 # Check various functions
 foreach(func
     fsync
-    snprintf vsnprintf strnlen
+    snprintf vsnprintf strnlen strtoull
     setpriority
     )
     string(TOUPPER ${func} func_upper)
