@@ -24,6 +24,10 @@
 #include "wx/longlong.h"
 #include "wx/clntdata.h"
 
+#if wxUSE_STD_CONTAINERS
+#include <numeric>
+#endif // wxUSE_STD_CONTAINERS
+
 // -----------------------------------------------------------------------
 
 //
@@ -308,9 +312,11 @@ WX_DECLARE_HASH_SET_WITH_DECL(int,
                               wxPGHashSetInt,
                               class WXDLLIMPEXP_PROPGRID);
 
+#if WXWIN_COMPATIBILITY_3_0
 WX_DEFINE_TYPEARRAY_WITH_DECL_PTR(wxObject*, wxArrayPGObject,
                                   wxBaseArrayPtrVoid,
                                   class WXDLLIMPEXP_PROPGRID);
+#endif // WXWIN_COMPATIBILITY_3_0
 
 // -----------------------------------------------------------------------
 
@@ -758,6 +764,20 @@ inline void wxPGRemoveItemFromVector(wxVector<T>& vector, const T& item)
         }
     }
 #endif // wxUSE_STL/!wxUSE_STL
+}
+
+// Utility to calaculate sum of all elements of the vector.
+template<typename T>
+inline T wxPGGetSumVectorItems(const wxVector<T>& vector, T init)
+{
+#if wxUSE_STD_CONTAINERS
+    return std::accumulate(vector.begin(), vector.end(), init);
+#else
+    for (typename wxVector<T>::const_iterator it = vector.begin(); it != vector.end(); ++it)
+        init += *it;
+
+    return init;
+#endif // wxUSE_STD_CONTAINERS/!wxUSE_STD_CONTAINERS
 }
 
 // -----------------------------------------------------------------------

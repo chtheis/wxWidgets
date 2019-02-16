@@ -18,9 +18,7 @@ class QPushButton;
 class WXDLLIMPEXP_CORE wxAnyButton : public wxAnyButtonBase
 {
 public:
-    wxAnyButton()
-    {
-    }
+    wxAnyButton();
 
     // implementation
     // --------------
@@ -28,6 +26,9 @@ public:
     virtual void SetLabel( const wxString &label );
 
     virtual QWidget *GetHandle() const;
+
+    // implementation only
+    void QtUpdateState();
 
 protected:
     virtual wxBitmap DoGetBitmap(State state) const wxOVERRIDE;
@@ -39,8 +40,10 @@ protected:
     void QtSetBitmap( const wxBitmap &bitmap );
 
 private:
+    State QtGetCurrentState() const;
+
     typedef wxAnyButtonBase base_type;
-    wxBitmap  m_bitmap;
+    wxBitmap  m_bitmaps[State_Max];
 
     wxDECLARE_NO_COPY_CLASS(wxAnyButton);
 };

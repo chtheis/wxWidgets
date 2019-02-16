@@ -58,8 +58,9 @@
     #include "wx/ownerdrw.h"
 #endif
 
-#include "wx/hashmap.h"
+#include "wx/display.h"
 #include "wx/evtloop.h"
+#include "wx/hashmap.h"
 #include "wx/popupwin.h"
 #include "wx/power.h"
 #include "wx/scopeguard.h"
@@ -1517,6 +1518,9 @@ WXDWORD wxWindowMSW::MSWGetStyle(long flags, WXDWORD *exstyle) const
     // most of windows are child ones, those which are not (such as
     // wxTopLevelWindow) should remove WS_CHILD in their MSWGetStyle()
     WXDWORD style = WS_CHILD;
+
+    if ( !IsThisEnabled() )
+        style |= WS_DISABLED;
 
     // using this flag results in very significant reduction in flicker,
     // especially with controls inside the static boxes (as the interior of the
@@ -3725,7 +3729,12 @@ wxWindowMSW::MSWHandleMessage(WXLRESULT *result,
                     }
 
                     wxUxThemeHandle hTheme((const wxWindow *)this, L"EDIT");
-                    RECT rcClient = { 0, 0, 0, 0 };
+
+                    // There is no need to initialize rcClient: either it will
+                    // be done by GetThemeBackgroundContentRect() or we'll do
+                    // it below if it fails.
+                    RECT rcClient;
+
                     wxClientDC dc((wxWindow *)this);
                     wxMSWDCImpl *impl = (wxMSWDCImpl*) dc.GetImpl();
 
@@ -3734,20 +3743,25 @@ wxWindowMSW::MSWHandleMessage(WXLRESULT *result,
                                  hTheme,
                                  GetHdcOf(*impl),
                                  EP_EDITTEXT,
-                                 ETS_NORMAL,
+                                 IsEnabled() ? ETS_NORMAL : ETS_DISABLED,
                                  rect,
-                                 &rcClient) == S_OK )
+                                 &rcClient) != S_OK )
                     {
-                        InflateRect(&rcClient, -1, -1);
-                        if (wParam)
-                            csparam->rgrc[0] = rcClient;
-                        else
-                            *((RECT*)lParam) = rcClient;
-
-                        // WVR_REDRAW triggers a bug whereby child windows are moved up and left,
-                        // so don't use.
-                        // rc.result = WVR_REDRAW;
+                        // If GetThemeBackgroundContentRect() failed, as can
+                        // happen with at least some custom themes, just use
+                        // the original client rectangle.
+                        rcClient = *rect;
                     }
+
+                    InflateRect(&rcClient, -1, -1);
+                    if (wParam)
+                        csparam->rgrc[0] = rcClient;
+                    else
+                        *((RECT*)lParam) = rcClient;
+
+                    // WVR_REDRAW triggers a bug whereby child windows are moved up and left,
+                    // so don't use.
+                    // rc.result = WVR_REDRAW;
                 }
             }
             break;
@@ -3770,28 +3784,37 @@ wxWindowMSW::MSWHandleMessage(WXLRESULT *result,
                     wxCopyRectToRECT(GetSize(), rcBorder);
 
                     RECT rcClient;
-                    ::GetThemeBackgroundContentRect(
-                        hTheme, GetHdcOf(*impl), EP_EDITTEXT, ETS_NORMAL, &rcBorder, &rcClient);
+
+                    const int nState = IsEnabled() ? ETS_NORMAL : ETS_DISABLED;
+
+                    if ( ::GetThemeBackgroundContentRect
+                                (
+                                 hTheme,
+                                 GetHdcOf(*impl),
+                                 EP_EDITTEXT,
+                                 nState,
+                                 &rcBorder,
+                                 &rcClient
+                                ) != S_OK )
+                    {
+                        // As above in WM_NCCALCSIZE, fall back on something
+                        // reasonable for themes which don't implement this
+                        // function.
+                        rcClient = rcBorder;
+                    }
+
                     InflateRect(&rcClient, -1, -1);
 
                     ::ExcludeClipRect(GetHdcOf(*impl), rcClient.left, rcClient.top,
                                       rcClient.right, rcClient.bottom);
 
                     // Make sure the background is in a proper state
-                    if (::IsThemeBackgroundPartiallyTransparent(hTheme, EP_EDITTEXT, ETS_NORMAL))
+                    if (::IsThemeBackgroundPartiallyTransparent(hTheme, EP_EDITTEXT, nState))
                     {
                         ::DrawThemeParentBackground(GetHwnd(), GetHdcOf(*impl), &rcBorder);
                     }
 
                     // Draw the border
-                    int nState;
-                    if ( !IsEnabled() )
-                        nState = ETS_DISABLED;
-                    // should we check this?
-                    //else if ( ::GetWindowLong(GetHwnd(), GWL_STYLE) & ES_READONLY)
-                    //    nState = ETS_READONLY;
-                    else
-                        nState = ETS_NORMAL;
                     ::DrawThemeBackground(hTheme, GetHdcOf(*impl), EP_EDITTEXT, nState, &rcBorder, NULL);
                 }
             }
@@ -4689,6 +4712,8 @@ bool wxWindowMSW::HandleSysColorChange()
 
 bool wxWindowMSW::HandleDisplayChange()
 {
+    wxDisplay::InvalidateCache();
+
     wxDisplayChangedEvent event;
     event.SetEventObject(this);
 
