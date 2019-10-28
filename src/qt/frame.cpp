@@ -107,13 +107,13 @@ void wxFrame::SetStatusBar( wxStatusBar *statusBar )
 
 void wxFrame::SetToolBar(wxToolBar *toolbar)
 {
-    int area = 0;
     if ( toolbar != NULL )
     {
-        if      (toolbar->HasFlag(wxTB_LEFT))  { area |= Qt::LeftToolBarArea;  }
-        else if (toolbar->HasFlag(wxTB_RIGHT)) { area |= Qt::RightToolBarArea; }
-        else if (toolbar->HasFlag(wxTB_TOP))   { area |= Qt::TopToolBarArea;   }
-        else if (toolbar->HasFlag(wxTB_BOTTOM)){ area |= Qt::BottomToolBarArea;}
+        int area = 0;
+        if      (toolbar->HasFlag(wxTB_LEFT))  { area = Qt::LeftToolBarArea;  }
+        else if (toolbar->HasFlag(wxTB_RIGHT)) { area = Qt::RightToolBarArea; }
+        else if (toolbar->HasFlag(wxTB_BOTTOM)){ area = Qt::BottomToolBarArea;}
+        else { area = Qt::TopToolBarArea;   }
 
         // We keep the current toolbar handle in our own member variable
         // because we can't get it from half-destroyed wxToolBar when it calls
@@ -134,14 +134,15 @@ void wxFrame::SetWindowStyleFlag( long style )
 {
     wxWindow::SetWindowStyleFlag( style );
 
-    QMainWindow *qtFrame = GetQMainWindow();
-    Qt::WindowFlags qtFlags = qtFrame->windowFlags();
-    qtFlags |= Qt::CustomizeWindowHint;
+    Qt::WindowFlags qtFlags = Qt::CustomizeWindowHint;
 
     if ( HasFlag( wxFRAME_TOOL_WINDOW ) )
     {
-        qtFlags &= ~Qt::WindowType_Mask;
         qtFlags |= Qt::Tool;
+    }
+    else
+    {
+        qtFlags |= Qt::Window;
     }
 
     if ( HasFlag(wxCAPTION) )
@@ -183,15 +184,19 @@ void wxFrame::SetWindowStyleFlag( long style )
         qtFlags |= Qt::FramelessWindowHint;
     }
 
-    qtFrame->setWindowFlags(qtFlags);
+    GetQMainWindow()->setWindowFlags(qtFlags);
+}
 
+QWidget* wxFrame::QtGetParentWidget() const
+{
+    return GetQMainWindow()->centralWidget();
 }
 
 void wxFrame::AddChild( wxWindowBase *child )
 {
     // Make sure all children are children of the central widget:
 
-    QtReparent( child->GetHandle(), GetQMainWindow()->centralWidget() );
+    QtReparent( child->GetHandle(), QtGetParentWidget() );
 
     wxFrameBase::AddChild( child );
 }
@@ -226,6 +231,19 @@ void wxFrame::DoGetClientSize(int *width, int *height) const
     }
 }
 
+void wxFrame::DoSetClientSize(int width, int height)
+{
+    wxWindow::DoSetClientSize(width, height);
+
+    int adjustedWidth, adjustedHeight;
+    DoGetClientSize(&adjustedWidth, &adjustedHeight);
+
+    QWidget *centralWidget = GetQMainWindow()->centralWidget();
+    QRect geometry = centralWidget->geometry();
+    geometry.setSize(QSize(adjustedWidth, adjustedHeight));
+    centralWidget->setGeometry(geometry);
+}
+
 QMainWindow *wxFrame::GetQMainWindow() const
 {
     return static_cast<QMainWindow*>(m_qtWindow);
@@ -242,4 +260,5 @@ wxQtMainWindow::wxQtMainWindow( wxWindow *parent, wxFrame *handler )
 wxQtCentralWidget::wxQtCentralWidget( wxWindow *parent, wxFrame *handler )
     : wxQtEventSignalHandler< QScrollArea, wxFrame >( parent, handler )
 {
+    setFocusPolicy(Qt::NoFocus);
 }

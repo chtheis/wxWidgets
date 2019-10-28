@@ -32,13 +32,8 @@
 #undef new
 #endif
 
-#include "wx/ioswrap.h"
-
-#if wxUSE_IOSTREAMH
-    #include <fstream.h>
-#else
-    #include <fstream>
-#endif
+#include <iostream>
+#include <fstream>
 
 #include "wx/wfstream.h"
 #include "wx/datstrm.h"
@@ -1012,7 +1007,6 @@ void MyApp::DoVariantDemo(wxCommandEvent& WXUNUSED(event) )
     textCtrl << "var1 = " << var1.MakeString() << "\n";
 
     // Conversion
-    wxString str = var1.MakeString();
 
     var1 = 123.456;
     textCtrl << "var1 = " << var1.GetReal() << "\n";

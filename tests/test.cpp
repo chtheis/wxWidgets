@@ -406,6 +406,18 @@ extern bool IsAutomaticTest()
     return s_isAutomatic == 1;
 }
 
+extern bool IsRunningUnderXVFB()
+{
+    static int s_isRunningUnderXVFB = -1;
+    if ( s_isRunningUnderXVFB == -1 )
+    {
+        wxString value;
+        s_isRunningUnderXVFB = wxGetEnv("wxUSE_XVFB", &value) && value == "1";
+    }
+
+    return s_isRunningUnderXVFB == 1;
+}
+
 #if wxUSE_GUI
 
 bool EnableUITests()
@@ -565,11 +577,11 @@ bool TestApp::ProcessEvent(wxEvent& event)
 int TestApp::RunTests()
 {
 #if wxUSE_LOG
-    // Switch off logging unless --verbose
-    bool verbose = wxLog::GetVerbose();
-    wxLog::EnableLogging(verbose);
-#else
-    bool verbose = false;
+    // Switch off logging to avoid interfering with the tests output unless
+    // WXTRACE is set, as otherwise setting it would have no effect while
+    // running the tests.
+    if ( !wxGetEnv("WXTRACE", NULL) )
+        wxLog::EnableLogging(false);
 #endif
 
     // Cast is needed under MSW where Catch also provides an overload taking

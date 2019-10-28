@@ -14,6 +14,7 @@
 #include "wx/qt/private/winevent.h"
 
 #include <QtWidgets/QTabWidget>
+#include <QtWidgets/QTabBar>
 
 class wxQtTabWidget : public wxQtEventSignalHandler< QTabWidget, wxNotebook >
 {
@@ -162,18 +163,30 @@ bool wxNotebook::InsertPage(size_t n, wxWindow *page, const wxString& text,
 
 wxSize wxNotebook::CalcSizeFromPage(const wxSize& sizePage) const
 {
-    return sizePage;
+    QTabBar *tabBar = m_qtTabWidget->tabBar();
+    const QSize &tabBarSize = tabBar->size();
+    return wxSize(sizePage.GetWidth(),
+        sizePage.GetHeight() + tabBarSize.height());
 }
 
 bool wxNotebook::DeleteAllPages()
 {
-    if ( !wxNotebookBase::DeleteAllPages() )
-        return false;
+    // Nothing to do if the notebook was not created yet,
+    // and return true just like other ports do.
+    if ( !m_qtTabWidget )
+        return true;
 
+    // Block signals to not receive selection changed updates
+    // which are sent by Qt after the selected page was deleted.
     m_qtTabWidget->blockSignals(true);
-    m_qtTabWidget->clear();
+
+    // Pages will be deleted one by one in the base class.
+    // There's no need to explicitly clear() the Qt control.
+    bool deleted = wxNotebookBase::DeleteAllPages();
+
     m_qtTabWidget->blockSignals(false);
-    return true;
+
+    return deleted;
 }
 
 int wxNotebook::SetSelection(size_t page)
@@ -183,8 +196,8 @@ int wxNotebook::SetSelection(size_t page)
     int selOld = GetSelection();
 
     // change the QTabWidget selected page:
-    m_selection = page;
     m_qtTabWidget->setCurrentIndex( page );
+    m_selection = page;
 
     return selOld;
 }
