@@ -88,11 +88,8 @@ private:
     wxDECLARE_NO_COPY_CLASS(ComboBoxTestCase);
 };
 
-// register in the unnamed registry so that these tests are run by default
-CPPUNIT_TEST_SUITE_REGISTRATION( ComboBoxTestCase );
-
-// also include in its own registry so that these tests can be run alone
-CPPUNIT_TEST_SUITE_NAMED_REGISTRATION( ComboBoxTestCase, "ComboBoxTestCase" );
+wxREGISTER_UNIT_TEST_WITH_TAGS(ComboBoxTestCase,
+                               "[ComboBoxTestCase][item-container]");
 
 // ----------------------------------------------------------------------------
 // test initialization
@@ -232,6 +229,25 @@ void ComboBoxTestCase::IsEmpty()
     // Compiling this should fail, see failtest target definition in test.bkl.
     m_combo->IsEmpty();
 #endif
+}
+
+TEST_CASE("wxComboBox::ProcessEnter", "[wxComboBox][enter]")
+{
+    class ComboBoxCreator : public TextLikeControlCreator
+    {
+    public:
+        virtual wxControl* Create(wxWindow* parent, int style) const wxOVERRIDE
+        {
+            const wxString choices[] = { "foo", "bar", "baz" };
+
+            return new wxComboBox(parent, wxID_ANY, wxString(),
+                                  wxDefaultPosition, wxDefaultSize,
+                                  WXSIZEOF(choices), choices,
+                                  style);
+        }
+    };
+
+    TestProcessEnter(ComboBoxCreator());
 }
 
 #endif //wxUSE_COMBOBOX

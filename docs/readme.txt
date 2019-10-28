@@ -1,4 +1,4 @@
-wxWidgets 3.1.2 Release Notes
+wxWidgets 3.1.3 Release Notes
 =============================
 
 Welcome to the latest development release of wxWidgets, a free and open source
@@ -16,49 +16,39 @@ more about wxWidgets at:
 
 Documentation is available online at:
 
-* https://docs.wxwidgets.org/3.1.2/
+* https://docs.wxwidgets.org/3.1.3/
 
 wxWidgets sources and binaries for the selected platforms are available for
 download from:
 
-* https://github.com/wxWidgets/wxWidgets/releases/tag/v3.1.2/
+* https://github.com/wxWidgets/wxWidgets/releases/tag/v3.1.3/
 
 
-Changes since 3.1.1
+Changes since 3.1.2
 -------------------
 
-There have been more than 1200 commits from 75 contributors (41 with multiple
-contributions) since 3.1.1 release. This release primarily contains bug fixes
-(closing more than 100 bugs from wxTrac) and incremental improvements in
-preparation for the next stable 3.2.0 release, however there is a usual lot of
-new features as well, including:
+There have been almost 2000 commits from 97 unique contributors (52 with
+multiple contributions) since 3.1.2 releases, so it is impossible to summarize
+all the changes in this document without making it too long, please see the
+full changelog at
 
-- Initial support for macOS 10.14 and its dark mode.
-- Support for non-integer font sizes and arbitrary font weights.
-- New wxLZMA{Input,Output}Stream classes.
-- Add wxDataViewToggleRenderer::ShowAsRadio(), wxDisplay::GetPPI(),
-  wxGrid::SetCornerLabelValue(), wxHtmlEasyPrinting::SetPromptMode(),
-  wxJoystickEvent::GetButtonOrdinal(), wxToolbook::EnablePage().
+https://raw.githubusercontent.com/wxWidgets/wxWidgets/v3.1.3/docs/changes.txt
 
-Some of the other improvements:
+for more details, but some of the most important changes are:
 
-- There were again many improvements to the (still experimental) wxQt port.
-- Fix several bugs related to focus handling and TAB navigation in wxGTK.
-- Make it possible to control pagination in wxHTML more precisely.
-- Fix several problems with high-DPI displays.
-- wxOSX now uses native NSImage/UIImage representation for wxBitmap.
-- Support strike-through font attribute in XRC and wxDataViewCtrl markup too.
-- Support more than 4 buttons in wxJoystick.
-- Add wxwidgets.props property sheet file for MSVS users.
-
-Please refer to the detailed change log for the full list of changes:
-
-https://raw.githubusercontent.com/wxWidgets/wxWidgets/v3.1.2/docs/changes.txt
+- Support for per-monitor DPI and dynamic DPI changes under MSW.
+- More generally, many fixes for various controls appearance in high DPI.
+- Long requested support for freezing rows and/or columns in wxGrid.
+- New XRC handlers for wxDataViewCtrl, wxInfoBar.
+- It is now possible to use gradients when creating wxGraphicsPen.
+- Extended compiler (MSVS 2019) and platforms (macOS 10.14+) support.
+- Significant improvements to the (still experimental) wxQt port.
+- Important bug fixes for focus handling in wxOSX port.
 
 
-Notice that this release is almost completely compatible with 3.1.1 at the API
-level, so upgrading to it if you're already using wxWidgets 3 should be
-straightforward.
+Notice that in spite of all the changes, this release remains almost completely
+compatible with 3.1.2 at the API level, so upgrading to it if you're already
+using wxWidgets 3 should be straightforward.
 
 
 Changes since 3.0
@@ -68,13 +58,16 @@ Compared to the stable 3.0.x series, this version brings too many
 improvements and even more bug fixes to list them all, but here is the
 maximally condensed summary:
 
-- Build system improvements: support for new compilers (MSVS 2017, g++ 8) and
-  OS versions as well as an entirely new CMake build system.
+- Build system improvements: support for new compilers (up to MSVS 2019, g++ 9)
+  with an even simpler way of using wxWidgets from MSVS, with wxwidgets.props
+  file, and OS versions as well as an entirely new CMake build system.
+- Support for native dark mode under macOS 10.14 Mojave and later.
 - New features: support for mouse gesture events (GSoC 2017 project);
   fractional pen widths in wxGraphicsContext; arbitrary label windows in
   wxStaticBox; markup in wxDataViewCtrl items text; better support for high DPI
   monitors; support for ZIP 64 files; much improved accessibility support under
-  MSW.
+  MSW; Support for non-integer font sizes and arbitrary font weights; LZMA
+  compression support (using liblzma)/
 - New classes: wxActivityIndicator, wxAddRemoveCtrl,
   wxAppProgressIndicator, wxNativeWindow, wxPowerResourceBlocker,
   wxSecretStore.
@@ -109,8 +102,8 @@ There is some support for the following platforms:
 * Most Unix variants with GTK+ 1.2
 * Most Unix variants with Qt 5 or newer (experimental)
 
-Most popular C++ compilers are supported; see the install.txt file for each
-platform (following the links from docs/index.htm).
+All C++ compilers in common use are supported; see the install.txt file for
+each platform (following the links from docs/index.htm).
 
 
 Files
@@ -138,8 +131,10 @@ Installation
 
 Unless you have downloaded the binaries for your compiler, you will need to
 build wxWidgets before you can test out the samples or write your own
-applications. For installation information, please see the install.txt file in
-the docs subdirectory appropriate for the platform you use.
+applications. For installation information, please see the install.md files in
+the docs subdirectory appropriate for the platform you use or the "Platform
+Details" page of the manual, which contains links to the rendered versions of
+these files.
 
 
 Licence
@@ -215,4 +210,4 @@ developed by its users and your contributions to it are always welcome!
 
 Have fun!
 
-The wxWidgets Team, December 2018
+The wxWidgets Team, October 2019

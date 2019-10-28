@@ -262,4 +262,18 @@ TEST_CASE_METHOD(SingleSelectDataViewCtrlTestCase,
     CHECK( rectRoot == wxRect() );
 }
 
+TEST_CASE_METHOD(SingleSelectDataViewCtrlTestCase,
+                 "wxDVC::DeleteAllItems",
+                 "[wxDataViewCtrl][delete]")
+{
+    // The invalid item corresponds to the root of tree store model, so it
+    // should have a single item (our m_root) initially.
+    CHECK( m_dvc->GetChildCount(wxDataViewItem()) == 1 );
+
+    m_dvc->DeleteAllItems();
+
+    // And none at all after deleting all the items.
+    CHECK( m_dvc->GetChildCount(wxDataViewItem()) == 0 );
+}
+
 #endif //wxUSE_DATAVIEWCTRL

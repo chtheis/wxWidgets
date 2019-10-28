@@ -275,6 +275,7 @@
 /misc/Test
 /misc/config.cache
 /misc/config.status
+/misc/system.list
 /misc/linux.system.cache
 /misc/wx-config
 /misc/config.log
@@ -285,6 +286,7 @@
 /misc/*.aps
 /misc/*.ncb
 /misc/*.pro
+/misc/*.opt
 /misc/Release
 /misc/Debug
 /misc/ReleaseDLL
@@ -472,5 +474,4 @@
 /utils/hhp2cached/*Carbon?Release*
 
 # /utils/wxrc/
-/utils/wxrc/*.sln
-/.svn/
+/utils/wxrc/wxrc_vc[789].sln
