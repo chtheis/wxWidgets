@@ -1,0 +1,67 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30711.63
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "wxrc", "wxrc_vc16.vcxproj", "{F37084CC-8FC4-59F4-B769-CDFF8A384B67}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
+		DLL Debug|x64 = DLL Debug|x64
+		DLL Debug|x86 = DLL Debug|x86
+		DLL Release|x64 = DLL Release|x64
+		DLL Release|x86 = DLL Release|x86
+		DLL Universal Debug|x64 = DLL Universal Debug|x64
+		DLL Universal Debug|x86 = DLL Universal Debug|x86
+		DLL Universal Release|x64 = DLL Universal Release|x64
+		DLL Universal Release|x86 = DLL Universal Release|x86
+		Release|x64 = Release|x64
+		Release|x86 = Release|x86
+		Universal Debug|x64 = Universal Debug|x64
+		Universal Debug|x86 = Universal Debug|x86
+		Universal Release|x64 = Universal Release|x64
+		Universal Release|x86 = Universal Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{F37084CC-8FC4-59F4-B769-CDFF8A384B67}.Debug|x64.ActiveCfg = Debug|x64
+		{F37084CC-8FC4-59F4-B769-CDFF8A384B67}.Debug|x64.Build.0 = Debug|x64
+		{F37084CC-8FC4-59F4-B769-CDFF8A384B67}.Debug|x86.ActiveCfg = Debug|Win32
+		{F37084CC-8FC4-59F4-B769-CDFF8A384B67}.Debug|x86.Build.0 = Debug|Win32
+		{F37084CC-8FC4-59F4-B769-CDFF8A384B67}.DLL Debug|x64.ActiveCfg = DLL Debug|x64
+		{F37084CC-8FC4-59F4-B769-CDFF8A384B67}.DLL Debug|x64.Build.0 = DLL Debug|x64
+		{F37084CC-8FC4-59F4-B769-CDFF8A384B67}.DLL Debug|x86.ActiveCfg = DLL Debug|Win32
+		{F37084CC-8FC4-59F4-B769-CDFF8A384B67}.DLL Debug|x86.Build.0 = DLL Debug|Win32
+		{F37084CC-8FC4-59F4-B769-CDFF8A384B67}.DLL Release|x64.ActiveCfg = DLL Release|x64
+		{F37084CC-8FC4-59F4-B769-CDFF8A384B67}.DLL Release|x64.Build.0 = DLL Release|x64
+		{F37084CC-8FC4-59F4-B769-CDFF8A384B67}.DLL Release|x86.ActiveCfg = DLL Release|Win32
+		{F37084CC-8FC4-59F4-B769-CDFF8A384B67}.DLL Release|x86.Build.0 = DLL Release|Win32
+		{F37084CC-8FC4-59F4-B769-CDFF8A384B67}.DLL Universal Debug|x64.ActiveCfg = DLL Universal Debug|x64
+		{F37084CC-8FC4-59F4-B769-CDFF8A384B67}.DLL Universal Debug|x64.Build.0 = DLL Universal Debug|x64
+		{F37084CC-8FC4-59F4-B769-CDFF8A384B67}.DLL Universal Debug|x86.ActiveCfg = DLL Universal Debug|Win32
+		{F37084CC-8FC4-59F4-B769-CDFF8A384B67}.DLL Universal Debug|x86.Build.0 = DLL Universal Debug|Win32
+		{F37084CC-8FC4-59F4-B769-CDFF8A384B67}.DLL Universal Release|x64.ActiveCfg = DLL Universal Release|x64
+		{F37084CC-8FC4-59F4-B769-CDFF8A384B67}.DLL Universal Release|x64.Build.0 = DLL Universal Release|x64
+		{F37084CC-8FC4-59F4-B769-CDFF8A384B67}.DLL Universal Release|x86.ActiveCfg = DLL Universal Release|Win32
+		{F37084CC-8FC4-59F4-B769-CDFF8A384B67}.DLL Universal Release|x86.Build.0 = DLL Universal Release|Win32
+		{F37084CC-8FC4-59F4-B769-CDFF8A384B67}.Release|x64.ActiveCfg = Release|x64
+		{F37084CC-8FC4-59F4-B769-CDFF8A384B67}.Release|x64.Build.0 = Release|x64
+		{F37084CC-8FC4-59F4-B769-CDFF8A384B67}.Release|x86.ActiveCfg = Release|Win32
+		{F37084CC-8FC4-59F4-B769-CDFF8A384B67}.Release|x86.Build.0 = Release|Win32
+		{F37084CC-8FC4-59F4-B769-CDFF8A384B67}.Universal Debug|x64.ActiveCfg = Universal Debug|x64
+		{F37084CC-8FC4-59F4-B769-CDFF8A384B67}.Universal Debug|x64.Build.0 = Universal Debug|x64
+		{F37084CC-8FC4-59F4-B769-CDFF8A384B67}.Universal Debug|x86.ActiveCfg = Universal Debug|Win32
+		{F37084CC-8FC4-59F4-B769-CDFF8A384B67}.Universal Debug|x86.Build.0 = Universal Debug|Win32
+		{F37084CC-8FC4-59F4-B769-CDFF8A384B67}.Universal Release|x64.ActiveCfg = Universal Release|x64
+		{F37084CC-8FC4-59F4-B769-CDFF8A384B67}.Universal Release|x64.Build.0 = Universal Release|x64
+		{F37084CC-8FC4-59F4-B769-CDFF8A384B67}.Universal Release|x86.ActiveCfg = Universal Release|Win32
+		{F37084CC-8FC4-59F4-B769-CDFF8A384B67}.Universal Release|x86.Build.0 = Universal Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {76B59F06-8DB6-4844-BEF7-C3403271EE5D}
+	EndGlobalSection
+EndGlobal
