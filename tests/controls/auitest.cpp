@@ -12,9 +12,8 @@
 
 #include "testprec.h"
 
-#ifdef __BORLANDC__
-    #pragma hdrstop
-#endif
+#if wxUSE_AUI
+
 
 #ifndef WX_PRECOMP
     #include "wx/app.h"
@@ -128,3 +127,5 @@ TEST_CASE( "wxAuiNotebook::DoGetBestSize", "[aui]" )
         CHECK( nb->GetBestSize() == wxSize(250, 175 + 3*tabHeight) );
     }
 }
+
+#endif

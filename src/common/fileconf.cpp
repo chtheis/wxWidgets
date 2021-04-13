@@ -16,9 +16,6 @@
 // For compilers that support precompilation, includes "wx.h".
 #include  "wx/wxprec.h"
 
-#ifdef    __BORLANDC__
-    #pragma hdrstop
-#endif  //__BORLANDC__
 
 #if wxUSE_CONFIG && wxUSE_FILECONFIG
 
@@ -72,9 +69,6 @@ static wxString FilterOutValue(const wxString& str);
 
 static wxString FilterInEntryName(const wxString& str);
 static wxString FilterOutEntryName(const wxString& str);
-
-// get the name to use in wxFileConfig ctor
-static wxString GetAppName(const wxString& appname);
 
 // ============================================================================
 // private classes
@@ -354,7 +348,8 @@ wxFileConfig::wxFileConfig(const wxString& appName, const wxString& vendorName,
                            const wxString& strLocal, const wxString& strGlobal,
                            long style,
                            const wxMBConv& conv)
-            : wxConfigBase(::GetAppName(appName), vendorName,
+            : wxConfigBase(( !appName && wxTheApp ) ? wxTheApp->GetAppName() : appName,
+                           vendorName,
                            strLocal, strGlobal,
                            style),
               m_fnLocalFile(strLocal),
@@ -397,6 +392,9 @@ wxFileConfig::wxFileConfig(const wxString& appName, const wxString& vendorName,
 wxFileConfig::wxFileConfig(wxInputStream &inStream, const wxMBConv& conv)
             : m_conv(conv.Clone())
 {
+    m_isDirty = false;
+    m_autosave = true;
+
     // always local_file when this constructor is called (?)
     SetStyle(GetStyle() | wxCONFIG_USE_LOCAL_FILE);
 
@@ -2093,16 +2091,6 @@ static wxString FilterOutEntryName(const wxString& str)
   }
 
   return strResult;
-}
-
-// we can't put ?: in the ctor initializer list because it confuses some
-// broken compilers (Borland C++)
-static wxString GetAppName(const wxString& appName)
-{
-    if ( !appName && wxTheApp )
-        return wxTheApp->GetAppName();
-    else
-        return appName;
 }
 
 #endif // wxUSE_CONFIG

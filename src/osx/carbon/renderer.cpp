@@ -13,9 +13,6 @@
 
 #if wxOSX_USE_COCOA_OR_CARBON
 
-#ifdef __BORLANDC__
-    #pragma hdrstop
-#endif
 
 #ifndef WX_PRECOMP
     #include "wx/string.h"
@@ -90,7 +87,7 @@ public:
                               const wxRect& rect,
                               int flags = 0) wxOVERRIDE;
 
-    virtual wxSize GetCheckBoxSize(wxWindow* win) wxOVERRIDE;
+    virtual wxSize GetCheckBoxSize(wxWindow* win, int flags = 0) wxOVERRIDE;
 
     virtual void DrawComboBoxDropButton(wxWindow *win,
                                         wxDC& dc,
@@ -351,11 +348,14 @@ void wxRendererMac::DrawSplitterSash( wxWindow *win,
 
     height = wxRendererNative::Get().GetSplitterParams(win).widthSash;
 
+    // Do not draw over border drawn by wxRendererGeneric::DrawSplitterBorder()
+    const wxCoord borderAdjust = win->HasFlag(wxSP_3DBORDER) ? 2 : 0;
+
     HIRect splitterRect;
     if (orient == wxVERTICAL)
-        splitterRect = CGRectMake( position, 0, height, size.y );
+        splitterRect = CGRectMake( position, borderAdjust, height, size.y - 2*borderAdjust );
     else
-        splitterRect = CGRectMake( 0, position, size.x, height );
+        splitterRect = CGRectMake( borderAdjust, position, size.x - 2*borderAdjust, height );
 
     // under compositing we should only draw when called by the OS, otherwise just issue a redraw command
     // strange redraw errors occur if we don't do this
@@ -491,7 +491,7 @@ wxRendererMac::DrawCheckBox(wxWindow *win,
                        kind, kThemeAdornmentNone);
 }
 
-wxSize wxRendererMac::GetCheckBoxSize(wxWindow* win)
+wxSize wxRendererMac::GetCheckBoxSize(wxWindow* win, int WXUNUSED(flags))
 {
     // Even though we don't use the window in this implementation, still check
     // that it's valid to avoid surprises when running the same code under the

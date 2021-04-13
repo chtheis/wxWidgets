@@ -19,9 +19,6 @@
 // for compilers that support precompilation, includes "wx.h".
 #include "wx/wxprec.h"
 
-#ifdef __BORLANDC__
-    #pragma hdrstop
-#endif
 
 #include "wx/renderer.h"
 
@@ -111,7 +108,7 @@ public:
                                const wxRect& rect,
                                int flags = 0) wxOVERRIDE;
 
-    virtual wxSize GetCheckBoxSize(wxWindow *win) wxOVERRIDE;
+    virtual wxSize GetCheckBoxSize(wxWindow *win, int flags = 0) wxOVERRIDE;
 
     virtual wxSize GetCheckMarkSize(wxWindow *win) wxOVERRIDE;
 
@@ -731,7 +728,7 @@ wxRendererGeneric::DrawCheckMark(wxWindow *WXUNUSED(win),
     dc.DrawCheckMark(rect);
 }
 
-wxSize wxRendererGeneric::GetCheckBoxSize(wxWindow *win)
+wxSize wxRendererGeneric::GetCheckBoxSize(wxWindow *win, int WXUNUSED(flags))
 {
     wxCHECK_MSG( win, wxSize(0, 0), "Must have a valid window" );
 
@@ -740,7 +737,7 @@ wxSize wxRendererGeneric::GetCheckBoxSize(wxWindow *win)
 
 wxSize wxRendererGeneric::GetCheckMarkSize(wxWindow *win)
 {
-    return GetCheckBoxSize(win);
+    return GetCheckBoxSize(win, wxCONTROL_CELL);
 }
 
 wxSize wxRendererGeneric::GetExpanderSize(wxWindow *win)

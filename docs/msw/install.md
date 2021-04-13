@@ -34,21 +34,6 @@ variable containing the full path to this directory. While this is not
 actually required, this makes using the library more convenient and
 this environment variable is used in the examples below.
 
-NB: If you checked your sources from version control repository and
-didn't obtain them from a release file, you also need to copy
-`include/wx/msw/setup0.h` to `include/wx/msw/setup.h` and to remember
-to update the latter whenever the former changes, otherwise you
-will get compilation errors if any new symbols are added to
-setup0.h file in the repository.
-
-If you have no intention of modifying setup.h, you may avoid this
-problem by creating a symbolic link to setup0.h instead of making
-a copy of it using mklink, from an admin command prompt:
-
-    cd %WXWIN%\include\wx\msw\
-    mklink setup.h setup0.h
-
-
 
 Building wxWidgets                     {#msw_build}
 ==================
@@ -79,11 +64,13 @@ Microsoft Visual C++ Compilation       {#msw_build_msvs}
 
    to build a release version or
 
-        > nmake /f makefile.vc BUILD=release SHARED=1
+        > nmake /f makefile.vc BUILD=release SHARED=1 TARGET_CPU=X86
 
-   to build a release DLL version. Finally, you can also add
-   `TARGET_CPU=X64` to nmake command line to build Win64 versions
-   (this only works if you are using a 64 bit compiler, of course).
+   to build a 32 bit release DLL version from an x86 command prompt, or
+
+        > nmake /f makefile.vc BUILD=release SHARED=1 TARGET_CPU=X64
+
+   to build a 64 bit release DLL version from an x64 command prompt.
 
    See "Configuring the Build" for more information about the
    additional parameters that can be specified on the command line.
@@ -255,73 +242,22 @@ NOTE: The makefile.gcc makefiles are for compilation under MinGW using
 
 
 
-Borland C++ Compilation                {#msw_build_borland}
-----------------------------------------------------------------
 
-WARNING: Borland instructions are out of date, please send us your
-         corrections if you are using it with wxWidgets 3.0.
+Installing and building wxWidgets using vcpkg         {#msw_install_and_build}
+=============================================
 
-The minimum version required is 5.5 (last version supported by BC++ 5.0 was
-2.4.2), which can be downloaded for free from:
-http://www.borland.com/products/downloads/download_cbuilder.html
+You can download and install wxWidgets using the [vcpkg](https://github.com/Microsoft/vcpkg) 
+dependency manager:
 
-We have found that the free Turbo Explorer and commercial BDS work fine; the
-debugger is very good. To avoid linker errors you will need to add
--DSHARED=1 to the makefile line for the library
+    > git clone https://github.com/Microsoft/vcpkg.git
+    > cd vcpkg
+    > bootstrap-vcpkg.bat
+    > vcpkg integrate install
+    > vcpkg install wxwidgets
 
-The version 5.6 included in Borland C++ Builder 2006 works as well after the
-following small change: please remove the test for `__WINDOWS__` from line 88
-of the file `BCCDIR\include\stl\_threads.h`.
-
-Compiling using the makefiles:
-
-1. Change directory to build\msw. Type 'make -f makefile.bcc' to
-   make the wxWidgets core library. Ignore the compiler warnings.
-   This produces a couple of libraries in the `lib\bcc_lib` directory.
-
-2. Change directory to a sample or demo such as samples\minimal, and type
-   `make -f makefile.bcc`. This produces a windows exe file - by default
-   in the `bcc_mswd` subdirectory.
-
-Note (1): the wxWidgets makefiles assume dword structure alignment. Please
-make sure that your own project or makefile settings use the
-same alignment, or you could experience mysterious crashes. To
-change the alignment, change CPPFLAGS in build\msw\config.bcc.
-
-Note (2): If you wish debug messages to be sent to the console in
-debug mode, edit makefile.bcc and change /aa to /Tpe in link commands.
-
-Using the Debugger and IDE in BDS or Turbo Explorer
----------------------------------------------------
-
-Doubleclick / open \%WXWIN\%\samples\minimal\borland.bdsproj. The current version
-is to be used with a dynamic build of wxWidgets-made by running
-make -f Makefile.bcc -DBUILD=debug -DSHARED=1
-in wxWidgets\build\msw. You also need the `wxWidgets\lib\bcc_dll`
-directory in your PATH. The debugger tracks your source and also
-traces into the wxWidgets sources.
-
-To use this to debug other samples, copy the `borland_ide.cpp`
-and borland.bdsproj files, then replace all occurrences of
-"minimal" with the name of the new project files
-
-Compilation succeeds with CBuilderX personal edition and CBuilder6, but
-you may have to copy make.exe from the 5.5 download to the new bin directory.
-
-Compiling using the IDE files for Borland C++ 5.0 and using CBuilder IDE
-(v1-v6): not supported
-
-
-** REMEMBER **
-In all of your wxWidgets applications, your source code should include
-the following preprocessor directive:
-
-    #ifdef __BORLANDC__
-    #pragma hdrstop
-    #endif
-
-(check the samples -- e.g., \wx2\samples\minimal\minimal.cpp -- for
-more details)
+The wxWidgets port in vcpkg is kept up to date by Microsoft team members and community 
+contributors. If the version is out of date, please [create an issue or pull request]
+(https://github.com/Microsoft/vcpkg) on the vcpkg repository.
 
 
 
@@ -423,7 +359,7 @@ The full list of the build settings follows:
 
   Links static version of C and C++ runtime libraries into the executable, so
   that the program does not depend on DLLs provided with the compiler (e.g.
-  Visual C++'s msvcrt.dll or Borland's cc3250mt.dll).
+  Visual C++'s msvcrt.dll).
   Caution: Do not use static runtime libraries when building DLL (SHARED=1)!
 
 * `DEBUG_FLAG=0`
@@ -506,8 +442,15 @@ Building Applications Using wxWidgets  {#msw_build_apps}
 =====================================
 
 If you use MSVS 2010 or later IDE for building your project, simply add
-`wxwidgets.props` property sheet to (all) your project(s) using wxWidgets.
-You don't need to do anything else.
+`wxwidgets.props` property sheet to (all) your project(s) using wxWidgets
+by using "View|Property Manager" menu item to open the property manager
+window and then selecting "Add Existing Property Sheet..." from the context
+menu in this window.
+
+If you've created a new empty project (i.e. chose "Empty Project" in the
+"Create a new project" window shown by MSVS rather than "Windows Desktop"),
+you need to change "Linker|System|SubSystem" in the project properties to
+"Windows", from the default "Console". You don't need to do anything else.
 
 If you want to use CMake for building your project, please see
 @ref overview_cmake.
@@ -573,10 +516,12 @@ application.
 Advanced Library Configurations        {#msw_advanced}
 ===============================
 Build instructions to less common library configurations using different UI
-backends are avaiable here.
+backends are available here.
 
 @subpage plat_msw_msys2 "Building with Win32 MSys2 backend"
 
 @subpage plat_msw_msys2_gtk "Building with Win32 MSys2 GDK backend"
 
 @subpage plat_msw_gtk "Building wxGTK port with Win32 GDK backend"
+
+@subpage plat_msw_msys2_qt "Building with Win32 MSys2 Qt backend"

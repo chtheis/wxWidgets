@@ -13,9 +13,6 @@
 // For compilers that support precompilation, includes "wx/wx.h".
 #include "wx/wxprec.h"
 
-#ifdef __BORLANDC__
-    #pragma hdrstop
-#endif
 
 // For all others, include the necessary headers (this file is usually all you
 // need because it includes almost all "standard" wxWidgets headers)
@@ -52,6 +49,7 @@
 #include "objrefdlg.h"
 // For functions to manipulate the corresponding controls.
 #include "wx/animate.h"
+#include "wx/generic/animate.h"
 #include "wx/infobar.h"
 #include "wx/treectrl.h"
 #include "wx/listctrl.h"
@@ -206,14 +204,17 @@ void MyFrame::OnAnimationCtrlPlay(wxCommandEvent& event)
 
     wxWindow *win = btn->GetParent();
     wxAnimationCtrl *ctrl = XRCCTRL(*win, "controls_animation_ctrl", wxAnimationCtrl);
+    wxGenericAnimationCtrl *generic =
+        XRCCTRL(*win, "controls_generic_animation_ctrl", wxGenericAnimationCtrl);
     if (ctrl->IsPlaying())
     {
         ctrl->Stop();
+        generic->Stop();
         btn->SetLabel("Play");
     }
     else
     {
-        if (ctrl->Play())
+        if ( ctrl->Play() && generic->Play() )
             btn->SetLabel("Stop");
         else
             wxLogError("Cannot play the animation...");

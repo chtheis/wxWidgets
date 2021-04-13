@@ -18,9 +18,6 @@
 // For compilers that support precompilation, includes "wx.h".
 #include "wx/wxprec.h"
 
-#ifdef __BORLANDC__
-    #pragma hdrstop
-#endif
 
 #include "wx/toplevel.h"
 
@@ -422,7 +419,8 @@ bool wxTopLevelWindowBase::Layout()
 
 
     // if we're using sizers or constraints - do use them
-    if ( GetSizer()
+    if ( GetAutoLayout()
+            || GetSizer()
 #if wxUSE_CONSTRAINTS
                     || GetConstraints()
 #endif

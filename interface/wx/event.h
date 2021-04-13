@@ -1574,7 +1574,7 @@ public:
         Under GTK, the raw key code is the @c keyval field of the corresponding
         GDK event.
 
-        Under OS X, the raw key code is the @c keyCode field of the
+        Under macOS, the raw key code is the @c keyCode field of the
         corresponding NSEvent.
 
         @note Currently the raw key codes are not supported by all ports, use
@@ -1594,7 +1594,7 @@ public:
         Under GTK, the raw flags contain the @c hardware_keycode field of the
         corresponding GDK event.
 
-        Under OS X, the raw flags contain the modifiers state.
+        Under macOS, the raw flags contain the modifiers state.
 
         @note Currently the raw key flags are not supported by all ports, use
               @ifdef_ wxHAS_RAW_KEY_CODES to determine if this feature is available.
@@ -1876,14 +1876,18 @@ public:
     @class wxSysColourChangedEvent
 
     This class is used for system colour change events, which are generated
-    when the user changes the colour settings using the control panel.
-    This is only appropriate under Windows.
+    when the user changes the colour settings or when the system theme changes
+    (e.g. automatic dark mode switching on macOS).
+
+    Event handlers for this event can access the new system colour settings through
+    wxSystemSettings::GetColour().
 
     @remarks
         The default event handler for this event propagates the event to child windows,
-        since Windows only sends the events to top-level windows.
-        If intercepting this event for a top-level window, remember to call the base
-        class handler, or to pass the event on to the window's children explicitly.
+        since the system events are only sent to top-level windows.
+        If intercepting this event for a top-level window, remember to either call
+        wxEvent::Skip() on the event, call the base class handler, or pass the event
+        on to the window's children explicitly.
 
     @beginEventTable{wxSysColourChangedEvent}
     @event{EVT_SYS_COLOUR_CHANGED(func)}
@@ -2215,9 +2219,14 @@ class wxPaintEvent : public wxEvent
 {
 public:
     /**
-        Constructor.
+        Constructor for exclusive use of wxWidgets itself.
+
+        Note that the objects of this class can @em not be created from
+        application code, they're only created by the library itself. If you
+        need a window to be repainted, use wxWindow::Refresh() instead of
+        trying to manually create an event of this class.
     */
-    wxPaintEvent(int id = 0);
+    explicit wxPaintEvent(wxWindow* window);
 };
 
 
@@ -2252,6 +2261,46 @@ public:
     */
     wxMaximizeEvent(int id = 0);
 };
+
+/**
+    @class wxFullScreenEvent
+
+    An event being sent when the user enters or exits full screen mode.
+
+    Currently this event is only generated in the wxOSX/Cocoa port when
+    wxTopLevelWindow::EnableFullScreenView() is enabled and the user
+    the user enters or exits full screen. Note that this event is @e not
+    generated when wxTopLevelWindow::ShowFullScreen().
+
+    @beginEventTable{wxFullScreenEvent}
+    @event{EVT_FULLSCREEN(func)}
+        Process a @c wxEVT_FULLSCREEN event.
+    @endEventTable
+
+    @library{wxcore}
+    @category{events}
+
+    @since 3.1.5
+
+    @see @ref overview_events, wxTopLevelWindow::EnableFullScreenView,
+         wxTopLevelWindow::IsFullScreen
+*/
+class wxFullScreenEvent : public wxEvent
+{
+public:
+    /**
+        Constructor.
+    */
+    wxFullScreenEvent(int id = 0, bool fullscreen = true);
+
+    /**
+        Returns @true if the frame entered full screen, @false if exited
+        full screen.
+    */
+    bool IsFullScreen() const;
+};
+
+
 
 /**
     The possibles modes to pass to wxUpdateUIEvent::SetMode().
@@ -2368,6 +2417,26 @@ public:
         Returns @true if the UI element should be enabled.
     */
     bool GetEnabled() const;
+
+    /**
+        Returns @true if the UI element can be checked.
+
+        For the event handlers that can be used for multiple items, not all of
+        which can be checked, this method can be useful to determine whether
+        to call Check() on the event object or not, i.e. the main use case for
+        this method is:
+        @code
+        void MyWindow::OnUpdateUI(wxUpdateUIEvent& event)
+        {
+            ....
+            if ( event.IsCheckable() )
+                event.Check(...some condition...);
+        }
+        @endcode
+
+        @since 3.1.5
+    */
+    bool IsCheckable() const;
 
     /**
         Static function returning a value specifying how wxWidgets will send update
@@ -2779,7 +2848,7 @@ public:
         (or zoom in), a negative value means we should shrink (or zoom out).
 
         This method is only valid to call for @c wxEVT_MAGNIFY events which are
-        currently only generated under OS X.
+        currently only generated under macOS.
 
         @see Magnify()
 
@@ -2872,7 +2941,7 @@ public:
     /**
         Returns @true if the event is a magnify (i.e.\ pinch to zoom) event.
 
-        Such events are currently generated only under OS X.
+        Such events are currently generated only under macOS.
 
         @see GetMagnification()
 
@@ -4286,7 +4355,7 @@ public:
 /**
     @class wxMouseCaptureChangedEvent
 
-    An mouse capture changed event is sent to a window that loses its
+    A mouse capture changed event is sent to a window that loses its
     mouse capture. This is called even if wxWindow::ReleaseMouse
     was called by the application code. Handling this event allows
     an application to cater for unexpected capture releases which
@@ -4454,7 +4523,6 @@ public:
     wxMenuBar, attached to wxFrame, and popup menus shown by
     wxWindow::PopupMenu(). They are sent to the following objects until one of
     them handles the event:
-
         -# The menu object itself, as returned by GetMenu(), if any.
         -# The wxMenuBar to which this menu is attached, if any.
         -# The window associated with the menu, e.g. the one calling
@@ -4827,8 +4895,7 @@ wxEventType wxNewEventType();
 
     @see wxDECLARE_EVENT(), @ref overview_events_custom
  */
-#define wxDEFINE_EVENT(name, cls) \
-    const wxEventTypeTag< cls > name(wxNewEventType())
+#define wxDEFINE_EVENT(name, cls)
 
 /**
     Declares a custom event type.
@@ -4848,8 +4915,7 @@ wxEventType wxNewEventType();
     wxDECLARE_EVENT(MY_CUSTOM_EVENT, MyCustomEvent);
     @endcode
  */
-#define wxDECLARE_EVENT(name, cls) \
-        wxDECLARE_EXPORTED_EVENT(wxEMPTY_PARAMETER_VALUE, name, cls)
+#define wxDECLARE_EVENT(name, cls)
 
 /**
     Variant of wxDECLARE_EVENT() used for event types defined inside a shared
@@ -4860,8 +4926,7 @@ wxEventType wxNewEventType();
     wxDECLARE_EXPORTED_EVENT(WXDLLIMPEXP_CORE, wxEVT_BUTTON, wxCommandEvent);
     @endcode
  */
-#define wxDECLARE_EXPORTED_EVENT( expdecl, name, cls ) \
-    extern const expdecl wxEventTypeTag< cls > name;
+#define wxDECLARE_EXPORTED_EVENT( expdecl, name, cls )
 
 /**
     Helper macro for definition of custom event table macros.
@@ -4875,7 +4940,7 @@ wxEventType wxNewEventType();
 
     @see @ref overview_events_custom_ownclass
  */
-#define wxEVENT_HANDLER_CAST(functype, func) (&func)
+#define wxEVENT_HANDLER_CAST(functype, func)
 
 /**
     This macro is used to define event table macros for handling custom
@@ -4909,8 +4974,7 @@ wxEventType wxNewEventType();
     @param fn
         The event handler method.
  */
-#define wx__DECLARE_EVT1(evt, id, fn) \
-    wx__DECLARE_EVT2(evt, id, wxID_ANY, fn)
+#define wx__DECLARE_EVT1(evt, id, fn)
 
 /**
     Generalized version of the wx__DECLARE_EVT1() macro taking a range of
@@ -4918,16 +4982,14 @@ wxEventType wxNewEventType();
     Argument @a id1 is the first identifier of the range, @a id2 is the
     second identifier of the range.
 */
-#define wx__DECLARE_EVT2(evt, id1, id2, fn) \
-    DECLARE_EVENT_TABLE_ENTRY(evt, id1, id2, fn, NULL),
+#define wx__DECLARE_EVT2(evt, id1, id2, fn)
 
 /**
     Simplified version of the wx__DECLARE_EVT1() macro, to be used when the
     event type must be handled regardless of the ID associated with the
     specific event instances.
 */
-#define wx__DECLARE_EVT0(evt, fn) \
-    wx__DECLARE_EVT1(evt, wxID_ANY, fn)
+#define wx__DECLARE_EVT0(evt, fn)
 
 /**
     Use this macro inside a class declaration to declare a @e static event table
@@ -5129,4 +5191,3 @@ wxEventType wxEVT_WINDOW_MODAL_DIALOG_CLOSED;
 #endif // wxUSE_GUI
 
 //@}
-

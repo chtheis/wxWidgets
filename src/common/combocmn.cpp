@@ -18,11 +18,9 @@
 
 #include "wx/wxprec.h"
 
-#ifdef __BORLANDC__
-    #pragma hdrstop
-#endif
 
 #include "wx/combo.h"
+#include "wx/display.h"
 
 #ifdef __WXMSW__
 #include "wx/msw/private.h"
@@ -457,7 +455,8 @@ public:
     wxComboPopupWindow( wxComboCtrlBase *parent,
                         int style )
     #if USES_WXPOPUPWINDOW || USES_WXPOPUPTRANSIENTWINDOW
-                       : wxComboPopupWindowBase(parent,style)
+                       : wxComboPopupWindowBase(parent,
+                                                style | wxPU_CONTAINS_CONTROLS)
     #else
                        : wxComboPopupWindowBase(parent,
                                                 wxID_ANY,
@@ -1460,7 +1459,7 @@ wxSize wxComboCtrlBase::DoGetSizeFromTextSize(int xlen, int ylen) const
     fhei += 2 * FOCUS_RING;
 
     // Calculate width
-    int fwid = xlen + FOCUS_RING + COMBO_MARGIN + DEFAULT_DROPBUTTON_WIDTH;
+    int fwid = GetNativeTextIndent() + xlen + FOCUS_RING + COMBO_MARGIN + m_btnArea.width;
 
     // Add the margins we have previously set
     wxPoint marg( GetMargins() );
@@ -1533,6 +1532,37 @@ bool wxComboCtrlBase::SetFont ( const wxFont& font )
     }
 
     return true;
+}
+
+#if wxUSE_TOOLTIPS
+void wxComboCtrlBase::DoSetToolTip(wxToolTip *tooltip)
+{
+    wxControl::DoSetToolTip(tooltip);
+
+    // Set tool tip for button and text box
+    if ( tooltip )
+    {
+        const wxString &tip = tooltip->GetTip();
+        if ( m_text ) m_text->SetToolTip(tip);
+        if ( m_btn ) m_btn->SetToolTip(tip);
+    }
+    else
+    {
+        if ( m_text ) m_text->SetToolTip( NULL );
+        if ( m_btn ) m_btn->SetToolTip( NULL );
+    }
+}
+#endif // wxUSE_TOOLTIPS
+
+bool wxComboCtrlBase::SetForegroundColour(const wxColour& colour)
+{
+    if ( wxControl::SetForegroundColour(colour) )
+    {
+        if ( m_text )
+            m_text->SetForegroundColour(colour);
+        return true;
+    }
+    return false;
 }
 
 bool wxComboCtrlBase::SetBackgroundColour(const wxColour& colour)
@@ -2055,6 +2085,9 @@ void wxComboCtrlBase::OnCharEvent(wxKeyEvent& event)
 
 void wxComboCtrlBase::OnFocusEvent( wxFocusEvent& event )
 {
+    // Always let default handling of focus events to take place.
+    event.Skip();
+
     // On Mac, setting focus here led to infinite recursion so
     // m_resetFocus is used as a guard
 
@@ -2260,10 +2293,11 @@ void wxComboCtrlBase::ShowPopup()
     int maxHeightPopup;
     wxSize ctrlSz = GetSize();
 
-    screenHeight = wxSystemSettings::GetMetric( wxSYS_SCREEN_Y, this );
+    wxRect displayRect = wxDisplay(this).GetGeometry();
+    screenHeight = displayRect.GetHeight();
     scrPos = GetScreenPosition();
 
-    spaceAbove = scrPos.y;
+    spaceAbove = scrPos.y - displayRect.GetY();
     spaceBelow = screenHeight - spaceAbove - ctrlSz.y;
 
     maxHeightPopup = spaceBelow;
@@ -2338,7 +2372,7 @@ void wxComboCtrlBase::ShowPopup()
     if ( wxTheApp->GetLayoutDirection() == wxLayout_RightToLeft )
         leftX -= ctrlSz.x;
 
-    int screenWidth = wxSystemSettings::GetMetric( wxSYS_SCREEN_X, this );
+    int screenWidth = displayRect.GetWidth();
 
     // If there is not enough horizontal space, anchor on the other side.
     // If there is no space even then, place the popup at x 0.
@@ -2715,16 +2749,6 @@ void wxComboCtrlBase::SetTextCtrlStyle( int style )
 
     if ( m_text )
         m_text->SetWindowStyle(style);
-}
-
-wxWindowList wxComboCtrlBase::GetCompositeWindowParts() const
-{
-    wxWindowList parts;
-    if ( m_text )
-        parts.push_back(m_text);
-    if ( m_btn )
-        parts.push_back(m_btn);
-    return parts;
 }
 
 // ----------------------------------------------------------------------------

@@ -10,9 +10,6 @@
 
 #include "wx/wxprec.h"
 
-#ifdef __BORLANDC__
-    #pragma hdrstop
-#endif
 
 #if wxUSE_GRAPHICS_CONTEXT
 
@@ -20,9 +17,11 @@
 
 #if wxUSE_CAIRO
 
+#ifndef __WXGTK20__
 // keep cairo.h from defining dllimport as we're defining the symbols inside
 // the wx dll in order to load them dynamically.
 #define cairo_public
+#endif
 
 #include <cairo.h>
 #include <float.h>
@@ -63,7 +62,6 @@ using namespace std;
 // wxGraphicsPath implementation
 //-----------------------------------------------------------------------------
 
-#include <cairo.h>
 #ifdef __WXMSW__
 // TODO remove this dependency (gdiplus needs the macros)
 
@@ -443,17 +441,23 @@ public:
 
     virtual bool ShouldOffset() const wxOVERRIDE
     {
-        if ( !m_enableOffset )
+        if (!m_enableOffset || m_pen.IsNull())
             return false;
 
-        int penwidth = 0 ;
-        if ( !m_pen.IsNull() )
-        {
-            penwidth = (int)((wxCairoPenData*)m_pen.GetRefData())->GetWidth();
-            if ( penwidth == 0 )
-                penwidth = 1;
-        }
-        return ( penwidth % 2 ) == 1;
+        const double width = static_cast<wxCairoPenData*>(m_pen.GetRefData())->GetWidth();
+
+        // always offset for 1-pixel width
+        if (width <= 0)
+            return true;
+
+        // no offset if overall scale is not odd integer
+        double x = GetContentScaleFactor(), y = x;
+        cairo_user_to_device_distance(m_context, &x, &y);
+        if (!wxIsSameDouble(fmod(wxMin(fabs(x), fabs(y)), 2.0), 1.0))
+            return false;
+
+        // offset if pen width is odd integer
+        return wxIsSameDouble(fmod(width, 2.0), 1.0);
     }
 
     virtual void Clip( const wxRegion &region ) wxOVERRIDE;
@@ -526,6 +530,45 @@ protected:
     WindowHDC m_mswWindowHDC;
     int m_mswStateSavedDC;
 #endif
+#ifdef __WXGTK__
+    // Tiny helper actually applying the font. It's convenient because it can
+    // be called with a temporary wxFont, as we're going to make a copy of its
+    // Pango font description inside this function before the font object is
+    // destroyed.
+    //
+    // It's also all we need for GTK < 3.
+    static void DoApplyFont(PangoLayout* layout, const wxFont& font)
+    {
+        pango_layout_set_font_description
+        (
+            layout,
+            font.GetNativeFontInfo()->description
+        );
+    }
+
+#ifdef __WXGTK3__
+    // This factor must be applied to the font before actually using it, for
+    // consistency with the text drawn by GTK itself.
+    float m_fontScalingFactor;
+
+    // Function applying the Pango font description for the given font scaled by
+    // the font scaling factor if necessary to the specified layout.
+    void ApplyFont(PangoLayout* layout, const wxFont& font) const
+    {
+        // Only scale the font if we really need to do it.
+        DoApplyFont(layout, m_fontScalingFactor == 1.0f
+                                ? font
+                                : font.Scaled(m_fontScalingFactor));
+    }
+#else // GTK < 3
+    // Provide the same function even if it does nothing in this case to keep
+    // the same code for all GTK versions.
+    void ApplyFont(PangoLayout* layout, const wxFont& font) const
+    {
+        DoApplyFont(layout, font);
+    }
+#endif // __WXGTK3__
+#endif // __WXGTK__
 
 private:
     cairo_t* m_context;
@@ -550,6 +593,8 @@ public:
         m_data(renderer, image)
     {
         Init(cairo_create(m_data.GetCairoSurface()));
+        m_width = image.GetWidth();
+        m_height = image.GetHeight();
     }
 
     virtual ~wxCairoImageContext()
@@ -602,7 +647,7 @@ wxCairoPenBrushBaseData::wxCairoPenBrushBaseData(wxGraphicsRenderer* renderer,
     m_pattern = NULL;
     m_bmpdata = NULL;
 
-    if ( isTransparent )
+    if ( isTransparent || !col.IsOk() )
     {
         m_red =
         m_green =
@@ -735,7 +780,7 @@ void wxCairoPenBrushBaseData::AddGradientStops(const wxGraphicsGradientStops& st
         cairo_pattern_add_color_stop_rgba
         (
             m_pattern,
-            stop.GetPosition(),
+            double(stop.GetPosition()),
             col.Red()/255.0,
             col.Green()/255.0,
             col.Blue()/255.0,
@@ -805,8 +850,6 @@ wxCairoPenData::wxCairoPenData( wxGraphicsRenderer* renderer, const wxGraphicsPe
 {
     Init();
     m_width = info.GetWidth();
-    if (m_width <= 0.0)
-        m_width = 0.1;
 
     switch ( info.GetCap() )
     {
@@ -867,6 +910,25 @@ wxCairoPenData::wxCairoPenData( wxGraphicsRenderer* renderer, const wxGraphicsPe
     switch ( info.GetStyle() )
     {
     case wxPENSTYLE_SOLID :
+        // Non-RGB colours, which may e.g. appear under wxOSX for wxColours
+        // with NSColor backend, are not supported by Cairo and have to be
+        // handled in a special way.
+        if ( !info.GetColour().IsSolid() )
+        {
+#if defined(__WXOSX_COCOA__)
+            // Under wxOSX, non-solid NSColors are actually represented
+            // by pattern images and therefore a wxPen with non-solid
+            // colour and wxPENSTYLE_SOLID style can be converted
+            // to a stiple (a surface pattern).
+
+            // Create a stiple bitmap from NSColor's pattern image
+            wxBitmap bmp(info.GetColour().OSXGetNSPatternImage());
+            InitStipple(&bmp);
+#else
+            wxFAIL_MSG( "Pen with non-solid colour is not supported." );
+#endif
+        }
+
         break;
 
     case wxPENSTYLE_DOT :
@@ -925,6 +987,8 @@ wxCairoPenData::wxCairoPenData( wxGraphicsRenderer* renderer, const wxGraphicsPe
         if ( info.GetStyle() >= wxPENSTYLE_FIRST_HATCH
             && info.GetStyle() <= wxPENSTYLE_LAST_HATCH )
         {
+            wxASSERT_MSG( info.GetColour().IsSolid(),
+                          "Pen with non-solid colour is not supported." );
             InitHatch(static_cast<wxHatchStyle>(info.GetStyle()));
         }
         break;
@@ -957,10 +1021,17 @@ void wxCairoPenData::Apply( wxGraphicsContext* context )
     wxCairoPenBrushBaseData::Apply(context);
 
     cairo_t * ctext = (cairo_t*) context->GetNativeContext();
-    cairo_set_line_width(ctext,m_width);
+    double width = m_width;
+    if (width <= 0)
+    {
+        double x = context->GetContentScaleFactor(), y = x;
+        cairo_user_to_device_distance(ctext, &x, &y);
+        width = 1 / wxMin(fabs(x), fabs(y));
+    }
+    cairo_set_line_width(ctext, width);
     cairo_set_line_cap(ctext,m_cap);
     cairo_set_line_join(ctext,m_join);
-    cairo_set_dash(ctext,(double*)m_lengths,m_count,0.0);
+    cairo_set_dash(ctext, m_lengths, m_count, 0);
 }
 
 //-----------------------------------------------------------------------------
@@ -987,9 +1058,34 @@ wxCairoBrushData::wxCairoBrushData( wxGraphicsRenderer* renderer,
             InitStipple(brush.GetStipple());
             break;
 
+        case wxBRUSHSTYLE_SOLID:
+            // Non-RGB colours, which may e.g. appear under wxOSX for wxColours
+            // with NSColor backend, are not supported by Cairo and have to be
+            // handled in a special way.
+            if ( !brush.GetColour().IsSolid() )
+            {
+#if defined(__WXOSX_COCOA__)
+                // Under wxOSX, non-solid NSColors are actually represented
+                // by pattern images and therefore a wxBrush with non-solid
+                // colour and wxBRUSHSTYLE_SOLID style can be converted
+                // to a stiple (a surface pattern).
+
+                // Create a stiple bitmap from NSColor's pattern image
+                wxBitmap bmp(brush.GetColour().OSXGetNSPatternImage());
+                InitStipple(&bmp);
+#else
+                wxFAIL_MSG( "Brush with non-solid colour is not supported." );
+#endif
+            }
+            break;
+
         default:
             if ( brush.IsHatch() )
+            {
+                wxASSERT_MSG( brush.GetColour().IsSolid(),
+                              "Brush with non-solid colour is not supported." );
                 InitHatch(static_cast<wxHatchStyle>(brush.GetStyle()));
+            }
             break;
     }
 }
@@ -1419,7 +1515,7 @@ void wxCairoMatrixData::TransformDistance( wxDouble *dx, wxDouble *dy ) const
 // returns the native representation
 void * wxCairoMatrixData::GetNativeMatrix() const
 {
-    return (void*) &m_matrix;
+    return const_cast<cairo_matrix_t*>(&m_matrix);
 }
 
 // ----------------------------------------------------------------------------
@@ -1489,22 +1585,19 @@ wxCairoBitmapData::wxCairoBitmapData( wxGraphicsRenderer* renderer, const wxBitm
     // Create a surface object and copy the bitmap pixel data to it.  if the
     // image has alpha (or a mask represented as alpha) then we'll use a
     // different format and iterator than if it doesn't...
-    const bool isSrcBpp32 =
-#if defined(__WXGTK__) && !defined(__WXGTK3__)
-            bmp.GetDepth() == 32 || bmp.GetMask() != NULL;
-#else
-            bmp.GetDepth() == 32;
+    const bool isSrcBpp32 = bmp.GetDepth() == 32;
+
+#if defined(__WXMSW__) || defined(__WXOSX__)
+    // Under MSW and OSX we can have 32 bpp xRGB bitmaps (without alpha).
+    const bool hasAlpha = bmp.HasAlpha();
 #endif
 
     cairo_format_t bufferFormat =
-#if defined(__WXGTK__) && !defined(__WXGTK3__)
-        isSrcBpp32
-#elif defined(__WXGTK3__)
-        isSrcBpp32 || bmp.GetMask() != NULL
-#elif defined(__WXMSW__) || defined(__WXOSX__)
-        (isSrcBpp32 && bmp.HasAlpha()) || bmp.GetMask() != NULL
+    // Under MSW and OSX we can have 32 bpp xRGB bitmaps (without alpha).
+#if defined(__WXMSW__) || defined(__WXOSX__)
+        (isSrcBpp32 && hasAlpha) || bmp.GetMask() != NULL
 #else
-        isSrcBpp32
+        isSrcBpp32 || bmp.GetMask() != NULL
 #endif
         ? CAIRO_FORMAT_ARGB32 : CAIRO_FORMAT_RGB24;
 
@@ -1515,13 +1608,6 @@ wxCairoBitmapData::wxCairoBitmapData( wxGraphicsRenderer* renderer, const wxBitm
 
     if ( isSrcBpp32 )
     {
-        // Using wxAlphaPixelData sets (on wxMSW and wxOSX) the internal
-        // "has alpha" flag but we want to leave it unchanged, so we need
-        // to save its current value now and restore it afterwards.
-#if defined(__WXMSW__) || defined(__WXOSX__)
-        const bool hasAlpha = bmpSource.HasAlpha();
-#endif // __WXMSW__ || __WXOSX__
-
         {
             // use the bitmap's alpha
             wxAlphaPixelData pixData(bmpSource);
@@ -1538,19 +1624,21 @@ wxCairoBitmapData::wxCairoBitmapData( wxGraphicsRenderer* renderer, const wxBitm
                     // with alpha in the upper 8 bits, then red, then green, then
                     // blue. The 32-bit quantities are stored native-endian.
                     // Pre-multiplied alpha is used.
-                    unsigned char alpha = (bufferFormat == CAIRO_FORMAT_ARGB32) ? p.Alpha() : 255;
-#ifdef __WXMSW__
-                    // MSW bitmap pixel bits are already premultiplied.
+#if defined (__WXMSW__) || defined(__WXOSX__)
+                    unsigned char alpha = hasAlpha ? p.Alpha() : wxALPHA_OPAQUE;
+                    // MSW and OSX bitmap pixel bits are already premultiplied.
                     *data = (alpha << 24 | p.Red() << 16 | p.Green() << 8 | p.Blue());
-#else // !__WXMSW__
-                    if (alpha == 0)
+#else // !__WXMSW__ , !__WXOSX__
+                    // We always have alpha, but we need to premultiply it.
+                    unsigned char alpha = p.Alpha();
+                    if (alpha == wxALPHA_TRANSPARENT)
                         *data = 0;
                     else
                         *data = (alpha << 24
                             | Premultiply(alpha, p.Red()) << 16
                             | Premultiply(alpha, p.Green()) << 8
                             | Premultiply(alpha, p.Blue()));
-#endif // __WXMSW__ / !__WXMSW__
+#endif // __WXMSW__, __WXOSX__ / !__WXMSW__, !__WXOSX__
                     ++data;
                     ++p;
                 }
@@ -1562,7 +1650,9 @@ wxCairoBitmapData::wxCairoBitmapData( wxGraphicsRenderer* renderer, const wxBitm
         }
 
 #if defined(__WXMSW__) || defined(__WXOSX__)
-        // Reset "has alpha" flag back.
+        // Using wxAlphaPixelData sets (on wxMSW and wxOSX) the internal
+        // "has alpha" flag but we want to leave it unchanged, so we need
+        // to reset "has alpha" flag back.
         // (wxBitmap::UseAlpha() is used only on wxMSW and wxOSX.)
         bmpSource.UseAlpha(hasAlpha);
 #endif // __WXMSW__ || __WXOSX__
@@ -1594,14 +1684,9 @@ wxCairoBitmapData::wxCairoBitmapData( wxGraphicsRenderer* renderer, const wxBitm
         }
     }
 
-#if defined(__WXMSW__) || defined(__WXGTK3__) || defined(__WXOSX__)
     // if there is a mask, set the alpha bytes in the target buffer to
-    // fully transparent or fully opaque
-#if defined(__WXMSW__)
-    if (bmp.GetMask() != NULL && !bmp.HasAlpha())
-#else // __WXGTK3__
+    // fully transparent or retain original value
     if (bmp.GetMask() != NULL)
-#endif // __WXMSW__ / __WXGTK3__
     {
         wxBitmap bmpMask = bmp.GetMask()->GetBitmap();
         data = (wxUint32*)m_buffer;
@@ -1615,15 +1700,9 @@ wxCairoBitmapData::wxCairoBitmapData( wxGraphicsRenderer* renderer, const wxBitm
             wxUint32* const rowStartDst = data;
             for (int x=0; x < pixData.GetWidth(); x++)
             {
-                // contrary to the others OSX has natively its masked out pixels as white
-#ifdef __WXOSX__
-                if (p.Red() == 0xFF && p.Green() == 0xFF && p.Blue() == 0xFF )
-#else
                 if (p.Red()+p.Green()+p.Blue() == 0)
-#endif
                     *data = 0;
-                else
-                    *data = (wxALPHA_OPAQUE << 24) | (*data & 0x00FFFFFF);
+
                 ++data;
                 ++p;
             }
@@ -1633,7 +1712,6 @@ wxCairoBitmapData::wxCairoBitmapData( wxGraphicsRenderer* renderer, const wxBitm
             p.OffsetY(pixData, 1);
         }
     }
-#endif // __WXMSW__ || __WXGTK3__
 
     InitSurface(bufferFormat, stride);
 #endif // wxHAS_RAW_BITMAP
@@ -1645,7 +1723,7 @@ wxCairoBitmapData::wxCairoBitmapData(wxGraphicsRenderer* renderer,
                                      const wxImage& image)
     : wxGraphicsBitmapData(renderer)
 {
-    const cairo_format_t bufferFormat = image.HasAlpha()
+    const cairo_format_t bufferFormat = image.HasAlpha() || image.HasMask()
                                             ? CAIRO_FORMAT_ARGB32
                                             : CAIRO_FORMAT_RGB24;
 
@@ -1667,13 +1745,16 @@ wxCairoBitmapData::wxCairoBitmapData(wxGraphicsRenderer* renderer,
 
             for ( int x = 0; x < m_width; x++ )
             {
-                const unsigned char a = *alpha++;
+                const unsigned char a = alpha ? *alpha : wxALPHA_OPAQUE;
 
-                *dst++ = a                      << 24 |
-                         Premultiply(a, src[0]) << 16 |
-                         Premultiply(a, src[1]) <<  8 |
-                         Premultiply(a, src[2]);
+                *dst++ = a                    << 24 |
+                         ((a * src[0]) / 255) << 16 |
+                         ((a * src[1]) / 255) <<  8 |
+                         ((a * src[2]) / 255);
                 src += 3;
+
+                if ( alpha )
+                    alpha++;
             }
 
             dst = rowStartDst + stride / 4;
@@ -1694,6 +1775,37 @@ wxCairoBitmapData::wxCairoBitmapData(wxGraphicsRenderer* renderer,
             }
 
             dst = rowStartDst + stride / 4;
+        }
+    }
+
+    // if there is a mask, set the alpha bytes in the target buffer to
+    // fully transparent or retain original value
+    if ( image.HasMask() )
+    {
+        unsigned char mr = image.GetMaskRed();
+        unsigned char mg = image.GetMaskGreen();
+        unsigned char mb = image.GetMaskBlue();
+
+        dst = reinterpret_cast<wxUint32*>(m_buffer);
+        src = image.GetData();
+
+        if ( bufferFormat == CAIRO_FORMAT_ARGB32 )
+        {
+            for ( int y = 0; y < m_height; y++ )
+            {
+                wxUint32* const rowStartDst = dst;
+
+                for ( int x = 0; x < m_width; x++ )
+                {
+                    if ( src[0] == mr && src[1] == mg && src[2] == mb )
+                        *dst = 0;
+
+                    dst++;
+                    src += 3;
+                }
+
+                dst = rowStartDst + stride / 4;
+            }
         }
     }
 
@@ -1811,21 +1923,26 @@ wxCairoBitmapData::~wxCairoBitmapData()
 class wxCairoOffsetHelper
 {
 public :
-    wxCairoOffsetHelper( cairo_t* ctx , bool offset )
+    wxCairoOffsetHelper(cairo_t* ctx, double scaleFactor, bool offset)
     {
         m_ctx = ctx;
-        m_offset = offset;
-        if ( m_offset )
-             cairo_translate( m_ctx, 0.5, 0.5 );
+        m_offset = 0;
+        if (offset)
+        {
+             double x = scaleFactor, y = x;
+             cairo_user_to_device_distance(ctx, &x, &y);
+             m_offset = 0.5 / wxMin(fabs(x), fabs(y));
+             cairo_translate(m_ctx, m_offset, m_offset);
+        }
     }
     ~wxCairoOffsetHelper( )
     {
-        if ( m_offset )
-            cairo_translate( m_ctx, -0.5, -0.5 );
+        if (m_offset > 0)
+            cairo_translate(m_ctx, -m_offset, -m_offset);
     }
-public :
+private:
     cairo_t* m_ctx;
-    bool m_offset;
+    double m_offset;
 } ;
 
 #if wxUSE_PRINTING_ARCHITECTURE
@@ -1849,9 +1966,7 @@ wxCairoContext::wxCairoContext( wxGraphicsRenderer* renderer, const wxPrinterDC&
     // Since we switched from MM_ANISOTROPIC to MM_TEXT mapping mode
     // we have to apply rescaled DC's device origin to Cairo context.
     ApplyTransformFromDC(dc, Apply_scaled_dev_origin);
-#endif //  __WXMSW__
-
-#ifdef __WXGTK20__
+#elif defined(__WXGTK20__)
     const wxDCImpl *impl = dc.GetImpl();
     cairo_t* cr = static_cast<cairo_t*>(impl->GetCairoContext());
     Init(cr ? cairo_reference(cr) : NULL);
@@ -1862,6 +1977,9 @@ wxCairoContext::wxCairoContext( wxGraphicsRenderer* renderer, const wxPrinterDC&
 
     // Transfer transformation settings from source DC to Cairo context.
     ApplyTransformFromDC(dc);
+#else
+    #warning "Constructing wxCairoContext from wxPrinterDC not implemented."
+    wxUnusedVar(dc);
 #endif
 }
 #endif
@@ -1874,7 +1992,7 @@ wxCairoContext::wxCairoContext( wxGraphicsRenderer* renderer, const wxWindowDC& 
     m_width = width;
     m_height = height;
 
-    m_enableOffset = dc.GetContentScaleFactor() <= 1;
+    EnableOffset();
 
 #ifdef __WXMSW__
     HDC hdc = (HDC)dc.GetHDC();
@@ -1887,7 +2005,7 @@ wxCairoContext::wxCairoContext( wxGraphicsRenderer* renderer, const wxWindowDC& 
     cairo_t* cr = static_cast<cairo_t*>(dc.GetImpl()->GetCairoContext());
     Init(cr ? cairo_reference(cr) : NULL);
 #elif defined __WXGTK20__
-    wxGTKDCImpl *impldc = (wxGTKDCImpl*) dc.GetImpl();
+    const wxGTKDCImpl* impldc = static_cast<const wxGTKDCImpl*>(dc.GetImpl());
     Init( gdk_cairo_create( impldc->GetGDKWindow() ) );
 
     // Transfer transformation settings from source DC to Cairo context on our own.
@@ -1927,7 +2045,7 @@ wxCairoContext::wxCairoContext( wxGraphicsRenderer* renderer, const wxMemoryDC& 
     m_width = width;
     m_height = height;
 
-    m_enableOffset = dc.GetContentScaleFactor() <= 1;
+    SetContentScaleFactor(dc.GetContentScaleFactor());
 
 #ifdef __WXMSW__
     wxBitmap bmp = dc.GetSelectedBitmap();
@@ -2100,7 +2218,7 @@ wxCairoContext::wxCairoContext( wxGraphicsRenderer* renderer, const wxMemoryDC& 
     cairo_t* cr = static_cast<cairo_t*>(dc.GetImpl()->GetCairoContext());
     Init(cr ? cairo_reference(cr) : NULL);
 #elif defined __WXGTK20__
-    wxGTKDCImpl *impldc = (wxGTKDCImpl*) dc.GetImpl();
+    const wxGTKDCImpl* impldc = static_cast<const wxGTKDCImpl*>(dc.GetImpl());
     Init( gdk_cairo_create( impldc->GetGDKWindow() ) );
 
     // Transfer transformation settings from source DC to Cairo context on our own.
@@ -2250,7 +2368,7 @@ wxCairoContext::wxCairoContext(wxGraphicsRenderer* renderer, HWND hWnd)
 {
     // See remarks for wxWindowBase::GetContentScaleFactor
     double scaleY = ::GetDeviceCaps((HDC)m_mswWindowHDC, LOGPIXELSY) / 96.0f;
-    m_enableOffset = scaleY <= 1.0;
+    SetContentScaleFactor(scaleY);
 
     m_mswStateSavedDC = 0;
     m_mswSurface = cairo_win32_surface_create((HDC)m_mswWindowHDC);
@@ -2291,7 +2409,7 @@ wxCairoContext::wxCairoContext( wxGraphicsRenderer* renderer, wxWindow *window)
     , m_mswWindowHDC(GetHwndOf(window))
 #endif
 {
-    m_enableOffset = window->GetContentScaleFactor() <= 1;
+    EnableOffset();
 #ifdef __WXGTK__
     // something along these lines (copied from dcclient)
 
@@ -2378,6 +2496,14 @@ wxCairoContext::~wxCairoContext()
 
 void wxCairoContext::Init(cairo_t *context)
 {
+#ifdef __WXGTK3__
+    // Attempt to find the system font scaling parameter (e.g. "Fonts->Scaling
+    // Factor" in Gnome Tweaks, "Force font DPI" in KDE System Settings or
+    // GDK_DPI_SCALE environment variable).
+    GdkScreen* screen = gdk_screen_get_default();
+    m_fontScalingFactor = screen ? gdk_screen_get_resolution(screen) / 96.0 : 1.0;
+#endif
+
     m_context = context;
     if ( m_context )
     {
@@ -2495,7 +2621,7 @@ void wxCairoContext::StrokePath( const wxGraphicsPath& path )
 {
     if ( !m_pen.IsNull() )
     {
-        wxCairoOffsetHelper helper( m_context, ShouldOffset() ) ;
+        wxCairoOffsetHelper helper(m_context, GetContentScaleFactor(), ShouldOffset());
         cairo_path_t* cp = (cairo_path_t*) path.GetNativePath() ;
         cairo_append_path(m_context,cp);
         ((wxCairoPenData*)m_pen.GetRefData())->Apply(this);
@@ -2508,7 +2634,7 @@ void wxCairoContext::FillPath( const wxGraphicsPath& path , wxPolygonFillMode fi
 {
     if ( !m_brush.IsNull() )
     {
-        wxCairoOffsetHelper helper( m_context, ShouldOffset() ) ;
+        wxCairoOffsetHelper helper(m_context, GetContentScaleFactor(), ShouldOffset());
         cairo_path_t* cp = (cairo_path_t*) path.GetNativePath() ;
         cairo_append_path(m_context,cp);
         ((wxCairoBrushData*)m_brush.GetRefData())->Apply(this);
@@ -2537,7 +2663,7 @@ void wxCairoContext::DrawRectangle( wxDouble x, wxDouble y, wxDouble w, wxDouble
     }
     if ( !m_pen.IsNull() )
     {
-        wxCairoOffsetHelper helper( m_context, ShouldOffset() ) ;
+        wxCairoOffsetHelper helper(m_context, GetContentScaleFactor(), ShouldOffset());
         ((wxCairoPenData*)m_pen.GetRefData())->Apply(this);
         cairo_rectangle(m_context, x, y, w, h);
         cairo_stroke(m_context);
@@ -2682,8 +2808,11 @@ void wxCairoContext::DoDrawText(const wxString& str, wxDouble x, wxDouble y)
     if ( font.IsOk() )
     {
         wxGtkObject<PangoLayout> layout(pango_cairo_create_layout (m_context));
-        pango_layout_set_font_description(layout, font.GetNativeFontInfo()->description);
+        ApplyFont(layout, font);
         pango_layout_set_text(layout, data, data.length());
+
+        // Note that Pango attributes don't depend on font size, so we don't
+        // need to use the scaled font here.
         font.GTKSetPangoAttrs(layout);
 
         cairo_move_to(m_context, x, y);
@@ -2737,7 +2866,7 @@ void wxCairoContext::GetTextExtent( const wxString &str, wxDouble *width, wxDoub
         int w, h;
 
         wxGtkObject<PangoLayout> layout(pango_cairo_create_layout (m_context));
-        pango_layout_set_font_description(layout, font.GetNativeFontInfo()->description);
+        ApplyFont(layout, font);
         const wxCharBuffer data = str.utf8_str();
         if ( !data )
         {
@@ -2786,7 +2915,7 @@ void wxCairoContext::GetTextExtent( const wxString &str, wxDouble *width, wxDoub
             fe.height = fe.ascent + fe.descent;
         }
 
-        if (height)
+        if (height && !str.empty())
             *height = fe.height;
         if ( descent )
             *descent = fe.descent;
@@ -2806,7 +2935,8 @@ void wxCairoContext::GetPartialTextExtents(const wxString& text, wxArrayDouble& 
     {
         wxGtkObject<PangoLayout> layout(pango_cairo_create_layout(m_context));
         const wxFont& font = static_cast<wxCairoFontData*>(m_font.GetRefData())->GetFont();
-        pango_layout_set_font_description(layout, font.GetNativeFontInfo()->description);
+
+        ApplyFont(layout, font);
         pango_layout_set_text(layout, data, data.length());
         PangoLayoutIter* iter = pango_layout_get_iter(layout);
         PangoRectangle rect;
@@ -2859,6 +2989,13 @@ bool wxCairoContext::SetAntialiasMode(wxAntialiasMode antialias)
             return false;
     }
     cairo_set_antialias(m_context, antialiasMode);
+
+    cairo_font_options_t* options = cairo_font_options_create();
+    cairo_get_font_options(m_context, options);
+    cairo_font_options_set_antialias(options, antialiasMode);
+    cairo_set_font_options(m_context, options);
+    cairo_font_options_destroy(options);
+
     return true;
 }
 
@@ -2934,7 +3071,7 @@ void wxCairoContext::EndLayer()
     float opacity = m_layerOpacities.back();
     m_layerOpacities.pop_back();
     cairo_pop_group_to_source(m_context);
-    cairo_paint_with_alpha(m_context,opacity);
+    cairo_paint_with_alpha(m_context, double(opacity));
 }
 
 //-----------------------------------------------------------------------------

@@ -493,8 +493,11 @@ MONODLL_OBJECTS =  \
 	$(OBJS)\monodll_sckstrm.obj \
 	$(OBJS)\monodll_socket.obj \
 	$(OBJS)\monodll_url.obj \
+	$(OBJS)\monodll_webrequest.obj \
+	$(OBJS)\monodll_webrequest_curl.obj \
 	$(OBJS)\monodll_sockmsw.obj \
 	$(OBJS)\monodll_urlmsw.obj \
+	$(OBJS)\monodll_webrequest_winhttp.obj \
 	$(____MONOLIB_GUI_SRC_FILENAMES_OBJECTS) \
 	$(OBJS)\monodll_xml.obj \
 	$(OBJS)\monodll_xtixml.obj
@@ -645,8 +648,11 @@ MONOLIB_OBJECTS =  \
 	$(OBJS)\monolib_sckstrm.obj \
 	$(OBJS)\monolib_socket.obj \
 	$(OBJS)\monolib_url.obj \
+	$(OBJS)\monolib_webrequest.obj \
+	$(OBJS)\monolib_webrequest_curl.obj \
 	$(OBJS)\monolib_sockmsw.obj \
 	$(OBJS)\monolib_urlmsw.obj \
+	$(OBJS)\monolib_webrequest_winhttp.obj \
 	$(____MONOLIB_GUI_SRC_FILENAMES_1_OBJECTS) \
 	$(OBJS)\monolib_xml.obj \
 	$(OBJS)\monolib_xtixml.obj
@@ -937,8 +943,11 @@ NETDLL_OBJECTS =  \
 	$(OBJS)\netdll_sckstrm.obj \
 	$(OBJS)\netdll_socket.obj \
 	$(OBJS)\netdll_url.obj \
+	$(OBJS)\netdll_webrequest.obj \
+	$(OBJS)\netdll_webrequest_curl.obj \
 	$(OBJS)\netdll_sockmsw.obj \
-	$(OBJS)\netdll_urlmsw.obj
+	$(OBJS)\netdll_urlmsw.obj \
+	$(OBJS)\netdll_webrequest_winhttp.obj
 NETLIB_CXXFLAGS = $(__RUNTIME_LIBS) -I$(BCCDIR)\include $(__DEBUGINFO) \
 	$(__OPTIMIZEFLAG) $(__THREADSFLAG) -D__WXMSW__ $(__WXUNIV_DEFINE_p) \
 	$(__DEBUG_DEFINE_p) $(__NDEBUG_DEFINE_p) $(__EXCEPTIONS_DEFINE_p) \
@@ -959,8 +968,11 @@ NETLIB_OBJECTS =  \
 	$(OBJS)\netlib_sckstrm.obj \
 	$(OBJS)\netlib_socket.obj \
 	$(OBJS)\netlib_url.obj \
+	$(OBJS)\netlib_webrequest.obj \
+	$(OBJS)\netlib_webrequest_curl.obj \
 	$(OBJS)\netlib_sockmsw.obj \
-	$(OBJS)\netlib_urlmsw.obj
+	$(OBJS)\netlib_urlmsw.obj \
+	$(OBJS)\netlib_webrequest_winhttp.obj
 COREDLL_CXXFLAGS = $(__RUNTIME_LIBS) -I$(BCCDIR)\include $(__DEBUGINFO) \
 	$(__OPTIMIZEFLAG) $(__THREADSFLAG) -D__WXMSW__ $(__WXUNIV_DEFINE_p) \
 	$(__DEBUG_DEFINE_p) $(__NDEBUG_DEFINE_p) $(__EXCEPTIONS_DEFINE_p) \
@@ -1224,7 +1236,6 @@ XRCDLL_OBJECTS =  \
 	$(OBJS)\xrcdll_xh_collpane.obj \
 	$(OBJS)\xrcdll_xh_combo.obj \
 	$(OBJS)\xrcdll_xh_comboctrl.obj \
-	$(OBJS)\xrcdll_xh_dataview.obj \
 	$(OBJS)\xrcdll_xh_datectrl.obj \
 	$(OBJS)\xrcdll_xh_dirpicker.obj \
 	$(OBJS)\xrcdll_xh_dlg.obj \
@@ -1238,7 +1249,6 @@ XRCDLL_OBJECTS =  \
 	$(OBJS)\xrcdll_xh_grid.obj \
 	$(OBJS)\xrcdll_xh_html.obj \
 	$(OBJS)\xrcdll_xh_hyperlink.obj \
-	$(OBJS)\xrcdll_xh_infobar.obj \
 	$(OBJS)\xrcdll_xh_listb.obj \
 	$(OBJS)\xrcdll_xh_listbk.obj \
 	$(OBJS)\xrcdll_xh_listc.obj \
@@ -1303,7 +1313,6 @@ XRCLIB_OBJECTS =  \
 	$(OBJS)\xrclib_xh_collpane.obj \
 	$(OBJS)\xrclib_xh_combo.obj \
 	$(OBJS)\xrclib_xh_comboctrl.obj \
-	$(OBJS)\xrclib_xh_dataview.obj \
 	$(OBJS)\xrclib_xh_datectrl.obj \
 	$(OBJS)\xrclib_xh_dirpicker.obj \
 	$(OBJS)\xrclib_xh_dlg.obj \
@@ -1317,7 +1326,6 @@ XRCLIB_OBJECTS =  \
 	$(OBJS)\xrclib_xh_grid.obj \
 	$(OBJS)\xrclib_xh_html.obj \
 	$(OBJS)\xrclib_xh_hyperlink.obj \
-	$(OBJS)\xrclib_xh_infobar.obj \
 	$(OBJS)\xrclib_xh_listb.obj \
 	$(OBJS)\xrclib_xh_listbk.obj \
 	$(OBJS)\xrclib_xh_listc.obj \
@@ -1698,7 +1706,6 @@ ____MONOLIB_GUI_SRC_FILENAMES_OBJECTS =  \
 	$(OBJS)\monodll_xh_collpane.obj \
 	$(OBJS)\monodll_xh_combo.obj \
 	$(OBJS)\monodll_xh_comboctrl.obj \
-	$(OBJS)\monodll_xh_dataview.obj \
 	$(OBJS)\monodll_xh_datectrl.obj \
 	$(OBJS)\monodll_xh_dirpicker.obj \
 	$(OBJS)\monodll_xh_dlg.obj \
@@ -1712,7 +1719,6 @@ ____MONOLIB_GUI_SRC_FILENAMES_OBJECTS =  \
 	$(OBJS)\monodll_xh_grid.obj \
 	$(OBJS)\monodll_xh_html.obj \
 	$(OBJS)\monodll_xh_hyperlink.obj \
-	$(OBJS)\monodll_xh_infobar.obj \
 	$(OBJS)\monodll_xh_listb.obj \
 	$(OBJS)\monodll_xh_listbk.obj \
 	$(OBJS)\monodll_xh_listc.obj \
@@ -2133,7 +2139,7 @@ ____CORE_SRC_FILENAMES_OBJECTS =  \
 	$(OBJS)\monodll_editlbox.obj \
 	$(OBJS)\monodll_laywin.obj \
 	$(OBJS)\monodll_calctrlg.obj \
-	$(OBJS)\monodll_rowheightcache.obj
+	$(OBJS)\monodll_creddlgg.obj
 !endif
 !if "$(USE_GUI)" == "1" && "$(WXUNIV)" == "1"
 ____CORE_SRC_FILENAMES_OBJECTS =  \
@@ -2459,7 +2465,7 @@ ____CORE_SRC_FILENAMES_OBJECTS =  \
 	$(OBJS)\monodll_editlbox.obj \
 	$(OBJS)\monodll_laywin.obj \
 	$(OBJS)\monodll_calctrlg.obj \
-	$(OBJS)\monodll_rowheightcache.obj
+	$(OBJS)\monodll_creddlgg.obj
 !endif
 !if "$(USE_STC)" == "1"
 ____MONOLIB_STC_SRC_FILENAMES_OBJECTS =  \
@@ -2531,7 +2537,6 @@ ____MONOLIB_GUI_SRC_FILENAMES_1_OBJECTS =  \
 	$(OBJS)\monolib_xh_collpane.obj \
 	$(OBJS)\monolib_xh_combo.obj \
 	$(OBJS)\monolib_xh_comboctrl.obj \
-	$(OBJS)\monolib_xh_dataview.obj \
 	$(OBJS)\monolib_xh_datectrl.obj \
 	$(OBJS)\monolib_xh_dirpicker.obj \
 	$(OBJS)\monolib_xh_dlg.obj \
@@ -2545,7 +2550,6 @@ ____MONOLIB_GUI_SRC_FILENAMES_1_OBJECTS =  \
 	$(OBJS)\monolib_xh_grid.obj \
 	$(OBJS)\monolib_xh_html.obj \
 	$(OBJS)\monolib_xh_hyperlink.obj \
-	$(OBJS)\monolib_xh_infobar.obj \
 	$(OBJS)\monolib_xh_listb.obj \
 	$(OBJS)\monolib_xh_listbk.obj \
 	$(OBJS)\monolib_xh_listc.obj \
@@ -2966,7 +2970,7 @@ ____CORE_SRC_FILENAMES_1_OBJECTS =  \
 	$(OBJS)\monolib_editlbox.obj \
 	$(OBJS)\monolib_laywin.obj \
 	$(OBJS)\monolib_calctrlg.obj \
-	$(OBJS)\monolib_rowheightcache.obj
+	$(OBJS)\monolib_creddlgg.obj
 !endif
 !if "$(USE_GUI)" == "1" && "$(WXUNIV)" == "1"
 ____CORE_SRC_FILENAMES_1_OBJECTS =  \
@@ -3292,7 +3296,7 @@ ____CORE_SRC_FILENAMES_1_OBJECTS =  \
 	$(OBJS)\monolib_editlbox.obj \
 	$(OBJS)\monolib_laywin.obj \
 	$(OBJS)\monolib_calctrlg.obj \
-	$(OBJS)\monolib_rowheightcache.obj
+	$(OBJS)\monolib_creddlgg.obj
 !endif
 !if "$(USE_STC)" == "1"
 ____MONOLIB_STC_SRC_FILENAMES_1_OBJECTS =  \
@@ -3672,7 +3676,7 @@ ____CORE_SRC_FILENAMES_2_OBJECTS =  \
 	$(OBJS)\coredll_editlbox.obj \
 	$(OBJS)\coredll_laywin.obj \
 	$(OBJS)\coredll_calctrlg.obj \
-	$(OBJS)\coredll_rowheightcache.obj
+	$(OBJS)\coredll_creddlgg.obj
 !endif
 !if "$(USE_GUI)" == "1" && "$(WXUNIV)" == "1"
 ____CORE_SRC_FILENAMES_2_OBJECTS =  \
@@ -3998,7 +4002,7 @@ ____CORE_SRC_FILENAMES_2_OBJECTS =  \
 	$(OBJS)\coredll_editlbox.obj \
 	$(OBJS)\coredll_laywin.obj \
 	$(OBJS)\coredll_calctrlg.obj \
-	$(OBJS)\coredll_rowheightcache.obj
+	$(OBJS)\coredll_creddlgg.obj
 !endif
 !if "$(MONOLITHIC)" == "0" && "$(SHARED)" == "0" && "$(USE_GUI)" == "1"
 __corelib___depname = \
@@ -4344,7 +4348,7 @@ ____CORE_SRC_FILENAMES_3_OBJECTS =  \
 	$(OBJS)\corelib_editlbox.obj \
 	$(OBJS)\corelib_laywin.obj \
 	$(OBJS)\corelib_calctrlg.obj \
-	$(OBJS)\corelib_rowheightcache.obj
+	$(OBJS)\corelib_creddlgg.obj
 !endif
 !if "$(USE_GUI)" == "1" && "$(WXUNIV)" == "1"
 ____CORE_SRC_FILENAMES_3_OBJECTS =  \
@@ -4670,7 +4674,7 @@ ____CORE_SRC_FILENAMES_3_OBJECTS =  \
 	$(OBJS)\corelib_editlbox.obj \
 	$(OBJS)\corelib_laywin.obj \
 	$(OBJS)\corelib_calctrlg.obj \
-	$(OBJS)\corelib_rowheightcache.obj
+	$(OBJS)\corelib_creddlgg.obj
 !endif
 !if "$(SHARED)" == "1"
 ____wxcore_namedll_DEP = $(__coredll___depname)
@@ -6790,11 +6794,20 @@ $(OBJS)\monodll_socket.obj: ..\..\src\common\socket.cpp
 $(OBJS)\monodll_url.obj: ..\..\src\common\url.cpp
 	$(CXX) -q -c -P -o$@ $(MONODLL_CXXFLAGS) ..\..\src\common\url.cpp
 
+$(OBJS)\monodll_webrequest.obj: ..\..\src\common\webrequest.cpp
+	$(CXX) -q -c -P -o$@ $(MONODLL_CXXFLAGS) ..\..\src\common\webrequest.cpp
+
+$(OBJS)\monodll_webrequest_curl.obj: ..\..\src\common\webrequest_curl.cpp
+	$(CXX) -q -c -P -o$@ $(MONODLL_CXXFLAGS) ..\..\src\common\webrequest_curl.cpp
+
 $(OBJS)\monodll_sockmsw.obj: ..\..\src\msw\sockmsw.cpp
 	$(CXX) -q -c -P -o$@ $(MONODLL_CXXFLAGS) ..\..\src\msw\sockmsw.cpp
 
 $(OBJS)\monodll_urlmsw.obj: ..\..\src\msw\urlmsw.cpp
 	$(CXX) -q -c -P -o$@ $(MONODLL_CXXFLAGS) ..\..\src\msw\urlmsw.cpp
+
+$(OBJS)\monodll_webrequest_winhttp.obj: ..\..\src\msw\webrequest_winhttp.cpp
+	$(CXX) -q -c -P -o$@ $(MONODLL_CXXFLAGS) ..\..\src\msw\webrequest_winhttp.cpp
 
 $(OBJS)\monodll_generic_statusbr.obj: ..\..\src\generic\statusbr.cpp
 	$(CXX) -q -c -P -o$@ $(MONODLL_CXXFLAGS) ..\..\src\generic\statusbr.cpp
@@ -7300,9 +7313,6 @@ $(OBJS)\monodll_xh_combo.obj: ..\..\src\xrc\xh_combo.cpp
 $(OBJS)\monodll_xh_comboctrl.obj: ..\..\src\xrc\xh_comboctrl.cpp
 	$(CXX) -q -c -P -o$@ $(MONODLL_CXXFLAGS) ..\..\src\xrc\xh_comboctrl.cpp
 
-$(OBJS)\monodll_xh_dataview.obj: ..\..\src\xrc\xh_dataview.cpp
-	$(CXX) -q -c -P -o$@ $(MONODLL_CXXFLAGS) ..\..\src\xrc\xh_dataview.cpp
-
 $(OBJS)\monodll_xh_datectrl.obj: ..\..\src\xrc\xh_datectrl.cpp
 	$(CXX) -q -c -P -o$@ $(MONODLL_CXXFLAGS) ..\..\src\xrc\xh_datectrl.cpp
 
@@ -7341,9 +7351,6 @@ $(OBJS)\monodll_xh_html.obj: ..\..\src\xrc\xh_html.cpp
 
 $(OBJS)\monodll_xh_hyperlink.obj: ..\..\src\xrc\xh_hyperlink.cpp
 	$(CXX) -q -c -P -o$@ $(MONODLL_CXXFLAGS) ..\..\src\xrc\xh_hyperlink.cpp
-
-$(OBJS)\monodll_xh_infobar.obj: ..\..\src\xrc\xh_infobar.cpp
-	$(CXX) -q -c -P -o$@ $(MONODLL_CXXFLAGS) ..\..\src\xrc\xh_infobar.cpp
 
 $(OBJS)\monodll_xh_listb.obj: ..\..\src\xrc\xh_listb.cpp
 	$(CXX) -q -c -P -o$@ $(MONODLL_CXXFLAGS) ..\..\src\xrc\xh_listb.cpp
@@ -8960,8 +8967,8 @@ $(OBJS)\monodll_calctrlg.obj: ..\..\src\generic\calctrlg.cpp
 !endif
 
 !if "$(USE_GUI)" == "1"
-$(OBJS)\monodll_rowheightcache.obj: ..\..\src\generic\rowheightcache.cpp
-	$(CXX) -q -c -P -o$@ $(MONODLL_CXXFLAGS) ..\..\src\generic\rowheightcache.cpp
+$(OBJS)\monodll_creddlgg.obj: ..\..\src\generic\creddlgg.cpp
+	$(CXX) -q -c -P -o$@ $(MONODLL_CXXFLAGS) ..\..\src\generic\creddlgg.cpp
 !endif
 
 $(OBJS)\monodll_version.res: ..\..\src\msw\version.rc
@@ -9342,11 +9349,20 @@ $(OBJS)\monolib_socket.obj: ..\..\src\common\socket.cpp
 $(OBJS)\monolib_url.obj: ..\..\src\common\url.cpp
 	$(CXX) -q -c -P -o$@ $(MONOLIB_CXXFLAGS) ..\..\src\common\url.cpp
 
+$(OBJS)\monolib_webrequest.obj: ..\..\src\common\webrequest.cpp
+	$(CXX) -q -c -P -o$@ $(MONOLIB_CXXFLAGS) ..\..\src\common\webrequest.cpp
+
+$(OBJS)\monolib_webrequest_curl.obj: ..\..\src\common\webrequest_curl.cpp
+	$(CXX) -q -c -P -o$@ $(MONOLIB_CXXFLAGS) ..\..\src\common\webrequest_curl.cpp
+
 $(OBJS)\monolib_sockmsw.obj: ..\..\src\msw\sockmsw.cpp
 	$(CXX) -q -c -P -o$@ $(MONOLIB_CXXFLAGS) ..\..\src\msw\sockmsw.cpp
 
 $(OBJS)\monolib_urlmsw.obj: ..\..\src\msw\urlmsw.cpp
 	$(CXX) -q -c -P -o$@ $(MONOLIB_CXXFLAGS) ..\..\src\msw\urlmsw.cpp
+
+$(OBJS)\monolib_webrequest_winhttp.obj: ..\..\src\msw\webrequest_winhttp.cpp
+	$(CXX) -q -c -P -o$@ $(MONOLIB_CXXFLAGS) ..\..\src\msw\webrequest_winhttp.cpp
 
 $(OBJS)\monolib_generic_statusbr.obj: ..\..\src\generic\statusbr.cpp
 	$(CXX) -q -c -P -o$@ $(MONOLIB_CXXFLAGS) ..\..\src\generic\statusbr.cpp
@@ -9852,9 +9868,6 @@ $(OBJS)\monolib_xh_combo.obj: ..\..\src\xrc\xh_combo.cpp
 $(OBJS)\monolib_xh_comboctrl.obj: ..\..\src\xrc\xh_comboctrl.cpp
 	$(CXX) -q -c -P -o$@ $(MONOLIB_CXXFLAGS) ..\..\src\xrc\xh_comboctrl.cpp
 
-$(OBJS)\monolib_xh_dataview.obj: ..\..\src\xrc\xh_dataview.cpp
-	$(CXX) -q -c -P -o$@ $(MONOLIB_CXXFLAGS) ..\..\src\xrc\xh_dataview.cpp
-
 $(OBJS)\monolib_xh_datectrl.obj: ..\..\src\xrc\xh_datectrl.cpp
 	$(CXX) -q -c -P -o$@ $(MONOLIB_CXXFLAGS) ..\..\src\xrc\xh_datectrl.cpp
 
@@ -9893,9 +9906,6 @@ $(OBJS)\monolib_xh_html.obj: ..\..\src\xrc\xh_html.cpp
 
 $(OBJS)\monolib_xh_hyperlink.obj: ..\..\src\xrc\xh_hyperlink.cpp
 	$(CXX) -q -c -P -o$@ $(MONOLIB_CXXFLAGS) ..\..\src\xrc\xh_hyperlink.cpp
-
-$(OBJS)\monolib_xh_infobar.obj: ..\..\src\xrc\xh_infobar.cpp
-	$(CXX) -q -c -P -o$@ $(MONOLIB_CXXFLAGS) ..\..\src\xrc\xh_infobar.cpp
 
 $(OBJS)\monolib_xh_listb.obj: ..\..\src\xrc\xh_listb.cpp
 	$(CXX) -q -c -P -o$@ $(MONOLIB_CXXFLAGS) ..\..\src\xrc\xh_listb.cpp
@@ -11512,8 +11522,8 @@ $(OBJS)\monolib_calctrlg.obj: ..\..\src\generic\calctrlg.cpp
 !endif
 
 !if "$(USE_GUI)" == "1"
-$(OBJS)\monolib_rowheightcache.obj: ..\..\src\generic\rowheightcache.cpp
-	$(CXX) -q -c -P -o$@ $(MONOLIB_CXXFLAGS) ..\..\src\generic\rowheightcache.cpp
+$(OBJS)\monolib_creddlgg.obj: ..\..\src\generic\creddlgg.cpp
+	$(CXX) -q -c -P -o$@ $(MONOLIB_CXXFLAGS) ..\..\src\generic\creddlgg.cpp
 !endif
 
 $(OBJS)\basedll_dummy.obj: ..\..\src\common\dummy.cpp
@@ -12245,11 +12255,20 @@ $(OBJS)\netdll_socket.obj: ..\..\src\common\socket.cpp
 $(OBJS)\netdll_url.obj: ..\..\src\common\url.cpp
 	$(CXX) -q -c -P -o$@ $(NETDLL_CXXFLAGS) ..\..\src\common\url.cpp
 
+$(OBJS)\netdll_webrequest.obj: ..\..\src\common\webrequest.cpp
+	$(CXX) -q -c -P -o$@ $(NETDLL_CXXFLAGS) ..\..\src\common\webrequest.cpp
+
+$(OBJS)\netdll_webrequest_curl.obj: ..\..\src\common\webrequest_curl.cpp
+	$(CXX) -q -c -P -o$@ $(NETDLL_CXXFLAGS) ..\..\src\common\webrequest_curl.cpp
+
 $(OBJS)\netdll_sockmsw.obj: ..\..\src\msw\sockmsw.cpp
 	$(CXX) -q -c -P -o$@ $(NETDLL_CXXFLAGS) ..\..\src\msw\sockmsw.cpp
 
 $(OBJS)\netdll_urlmsw.obj: ..\..\src\msw\urlmsw.cpp
 	$(CXX) -q -c -P -o$@ $(NETDLL_CXXFLAGS) ..\..\src\msw\urlmsw.cpp
+
+$(OBJS)\netdll_webrequest_winhttp.obj: ..\..\src\msw\webrequest_winhttp.cpp
+	$(CXX) -q -c -P -o$@ $(NETDLL_CXXFLAGS) ..\..\src\msw\webrequest_winhttp.cpp
 
 $(OBJS)\netlib_dummy.obj: ..\..\src\common\dummy.cpp
 	$(CXX) -q -c -P -o$@ $(NETLIB_CXXFLAGS) -H ..\..\src\common\dummy.cpp
@@ -12284,11 +12303,20 @@ $(OBJS)\netlib_socket.obj: ..\..\src\common\socket.cpp
 $(OBJS)\netlib_url.obj: ..\..\src\common\url.cpp
 	$(CXX) -q -c -P -o$@ $(NETLIB_CXXFLAGS) ..\..\src\common\url.cpp
 
+$(OBJS)\netlib_webrequest.obj: ..\..\src\common\webrequest.cpp
+	$(CXX) -q -c -P -o$@ $(NETLIB_CXXFLAGS) ..\..\src\common\webrequest.cpp
+
+$(OBJS)\netlib_webrequest_curl.obj: ..\..\src\common\webrequest_curl.cpp
+	$(CXX) -q -c -P -o$@ $(NETLIB_CXXFLAGS) ..\..\src\common\webrequest_curl.cpp
+
 $(OBJS)\netlib_sockmsw.obj: ..\..\src\msw\sockmsw.cpp
 	$(CXX) -q -c -P -o$@ $(NETLIB_CXXFLAGS) ..\..\src\msw\sockmsw.cpp
 
 $(OBJS)\netlib_urlmsw.obj: ..\..\src\msw\urlmsw.cpp
 	$(CXX) -q -c -P -o$@ $(NETLIB_CXXFLAGS) ..\..\src\msw\urlmsw.cpp
+
+$(OBJS)\netlib_webrequest_winhttp.obj: ..\..\src\msw\webrequest_winhttp.cpp
+	$(CXX) -q -c -P -o$@ $(NETLIB_CXXFLAGS) ..\..\src\msw\webrequest_winhttp.cpp
 
 $(OBJS)\coredll_dummy.obj: ..\..\src\common\dummy.cpp
 	$(CXX) -q -c -P -o$@ $(COREDLL_CXXFLAGS) -H ..\..\src\common\dummy.cpp
@@ -14022,8 +14050,8 @@ $(OBJS)\coredll_calctrlg.obj: ..\..\src\generic\calctrlg.cpp
 !endif
 
 !if "$(USE_GUI)" == "1"
-$(OBJS)\coredll_rowheightcache.obj: ..\..\src\generic\rowheightcache.cpp
-	$(CXX) -q -c -P -o$@ $(COREDLL_CXXFLAGS) ..\..\src\generic\rowheightcache.cpp
+$(OBJS)\coredll_creddlgg.obj: ..\..\src\generic\creddlgg.cpp
+	$(CXX) -q -c -P -o$@ $(COREDLL_CXXFLAGS) ..\..\src\generic\creddlgg.cpp
 !endif
 
 $(OBJS)\corelib_dummy.obj: ..\..\src\common\dummy.cpp
@@ -15755,8 +15783,8 @@ $(OBJS)\corelib_calctrlg.obj: ..\..\src\generic\calctrlg.cpp
 !endif
 
 !if "$(USE_GUI)" == "1"
-$(OBJS)\corelib_rowheightcache.obj: ..\..\src\generic\rowheightcache.cpp
-	$(CXX) -q -c -P -o$@ $(CORELIB_CXXFLAGS) ..\..\src\generic\rowheightcache.cpp
+$(OBJS)\corelib_creddlgg.obj: ..\..\src\generic\creddlgg.cpp
+	$(CXX) -q -c -P -o$@ $(CORELIB_CXXFLAGS) ..\..\src\generic\creddlgg.cpp
 !endif
 
 $(OBJS)\advdll_dummy.obj: ..\..\src\common\dummy.cpp
@@ -16104,9 +16132,6 @@ $(OBJS)\xrcdll_xh_combo.obj: ..\..\src\xrc\xh_combo.cpp
 $(OBJS)\xrcdll_xh_comboctrl.obj: ..\..\src\xrc\xh_comboctrl.cpp
 	$(CXX) -q -c -P -o$@ $(XRCDLL_CXXFLAGS) ..\..\src\xrc\xh_comboctrl.cpp
 
-$(OBJS)\xrcdll_xh_dataview.obj: ..\..\src\xrc\xh_dataview.cpp
-	$(CXX) -q -c -P -o$@ $(XRCDLL_CXXFLAGS) ..\..\src\xrc\xh_dataview.cpp
-
 $(OBJS)\xrcdll_xh_datectrl.obj: ..\..\src\xrc\xh_datectrl.cpp
 	$(CXX) -q -c -P -o$@ $(XRCDLL_CXXFLAGS) ..\..\src\xrc\xh_datectrl.cpp
 
@@ -16145,9 +16170,6 @@ $(OBJS)\xrcdll_xh_html.obj: ..\..\src\xrc\xh_html.cpp
 
 $(OBJS)\xrcdll_xh_hyperlink.obj: ..\..\src\xrc\xh_hyperlink.cpp
 	$(CXX) -q -c -P -o$@ $(XRCDLL_CXXFLAGS) ..\..\src\xrc\xh_hyperlink.cpp
-
-$(OBJS)\xrcdll_xh_infobar.obj: ..\..\src\xrc\xh_infobar.cpp
-	$(CXX) -q -c -P -o$@ $(XRCDLL_CXXFLAGS) ..\..\src\xrc\xh_infobar.cpp
 
 $(OBJS)\xrcdll_xh_listb.obj: ..\..\src\xrc\xh_listb.cpp
 	$(CXX) -q -c -P -o$@ $(XRCDLL_CXXFLAGS) ..\..\src\xrc\xh_listb.cpp
@@ -16314,9 +16336,6 @@ $(OBJS)\xrclib_xh_combo.obj: ..\..\src\xrc\xh_combo.cpp
 $(OBJS)\xrclib_xh_comboctrl.obj: ..\..\src\xrc\xh_comboctrl.cpp
 	$(CXX) -q -c -P -o$@ $(XRCLIB_CXXFLAGS) ..\..\src\xrc\xh_comboctrl.cpp
 
-$(OBJS)\xrclib_xh_dataview.obj: ..\..\src\xrc\xh_dataview.cpp
-	$(CXX) -q -c -P -o$@ $(XRCLIB_CXXFLAGS) ..\..\src\xrc\xh_dataview.cpp
-
 $(OBJS)\xrclib_xh_datectrl.obj: ..\..\src\xrc\xh_datectrl.cpp
 	$(CXX) -q -c -P -o$@ $(XRCLIB_CXXFLAGS) ..\..\src\xrc\xh_datectrl.cpp
 
@@ -16355,9 +16374,6 @@ $(OBJS)\xrclib_xh_html.obj: ..\..\src\xrc\xh_html.cpp
 
 $(OBJS)\xrclib_xh_hyperlink.obj: ..\..\src\xrc\xh_hyperlink.cpp
 	$(CXX) -q -c -P -o$@ $(XRCLIB_CXXFLAGS) ..\..\src\xrc\xh_hyperlink.cpp
-
-$(OBJS)\xrclib_xh_infobar.obj: ..\..\src\xrc\xh_infobar.cpp
-	$(CXX) -q -c -P -o$@ $(XRCLIB_CXXFLAGS) ..\..\src\xrc\xh_infobar.cpp
 
 $(OBJS)\xrclib_xh_listb.obj: ..\..\src\xrc\xh_listb.cpp
 	$(CXX) -q -c -P -o$@ $(XRCLIB_CXXFLAGS) ..\..\src\xrc\xh_listb.cpp

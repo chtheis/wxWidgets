@@ -11,9 +11,6 @@
 // For compilers that support precompilation, includes "wx.h".
 #include "wx/wxprec.h"
 
-#ifdef __BORLANDC__
-    #pragma hdrstop
-#endif
 
 #if wxUSE_LISTBOX
 
@@ -186,6 +183,9 @@ WXDWORD wxListBox::MSWGetStyle(long style, WXDWORD *exstyle) const
         msStyle |= LBS_OWNERDRAWFIXED | LBS_HASSTRINGS;
     }
 #endif // wxUSE_OWNER_DRAWN
+
+    // tabs stops are expanded by default on linux/GTK and macOS/Cocoa
+    msStyle |= LBS_USETABSTOPS;
 
     return msStyle;
 }
@@ -609,6 +609,12 @@ void wxListBox::SetHorizontalExtent(const wxString& s)
         SendMessage(GetHwnd(), LB_SETHORIZONTALEXTENT, LOWORD(largestExtent), 0L);
     }
     //else: it shouldn't change
+}
+
+bool wxListBox::MSWSetTabStops(const wxVector<int>& tabStops)
+{
+    return SendMessage(GetHwnd(), LB_SETTABSTOPS, (WPARAM)tabStops.size(),
+                       (LPARAM)(tabStops.empty() ? NULL : &tabStops[0])) == TRUE;
 }
 
 wxSize wxListBox::DoGetBestClientSize() const

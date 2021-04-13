@@ -10,9 +10,6 @@
 // For compilers that support precompilation, includes "wx/wx.h".
 #include "wx/wxprec.h"
 
-#ifdef __BORLANDC__
-    #pragma hdrstop
-#endif
 
 #ifndef WX_PRECOMP
     #include "wx/wx.h"
@@ -1205,11 +1202,11 @@ MyPanel::MyPanel( wxFrame *frame, int x, int y, int w, int h )
 
     m_tab = new MyTextCtrl( this, 100, "Multiline, allow <TAB> processing.",
       wxPoint(180,90), wxSize(200,70), wxTE_MULTILINE |  wxTE_PROCESS_TAB );
-    m_tab->SetClientData((void *)wxS("tab"));
+    m_tab->SetClientData(const_cast<void*>(static_cast<const void*>(wxS("tab"))));
 
     m_enter = new MyTextCtrl( this, 100, "Multiline, allow <ENTER> processing.",
       wxPoint(180,170), wxSize(200,70), wxTE_MULTILINE | wxTE_PROCESS_ENTER );
-    m_enter->SetClientData((void *)wxS("enter"));
+    m_enter->SetClientData(const_cast<void*>(static_cast<const void*>(wxS("enter"))));
 
     m_textrich = new MyTextCtrl(this, wxID_ANY, "Allows more than 30Kb of text\n"
                                 "(on all Windows versions)\n"

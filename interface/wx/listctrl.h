@@ -588,7 +588,7 @@ public:
         Returns @NULL if no label is being edited.
 
         @note It is currently only implemented for wxMSW and the generic version,
-              not for the native OS X version.
+              not for the native macOS version.
     */
     wxTextCtrl* GetEditControl() const;
 
@@ -906,7 +906,7 @@ public:
     long InsertItem(wxListItem& info);
 
     /**
-        Insert an string item.
+        Insert a string item.
 
         @param index
             Index of the new item, supplied by the application
@@ -1333,6 +1333,33 @@ public:
     */
     void CheckItem(long item, bool check);
 
+    /**
+        Extend rules and alternate rows background to the entire client area.
+
+        Bu default, the rules (when enabled with wxLC_HRULES and wxLC_VRULES)
+        and alternate row background (when EnableAlternateRowColours() was
+        called) are only shown in the part of the control occupied by the
+        items, which can be smaller than the entire window if there are few
+        items in the control.
+
+        Calling this function extends the display of the rules and alternate
+        background rows to the entire client area.
+
+        Similarly to EnableAlternateRowColours(), this method can only be used
+        with controls having ::wxLC_REPORT and ::wxLC_VIRTUAL styles.
+
+        Note that this method is currently not implemented in the native MSW
+        version and does nothing there.
+
+        @param extend
+            if @true, draws horizontal rules and vertical rules on empty rows
+            and uses the colour parameter to paint the background of
+            alternate rows when those rows are blank, empty, with no data.
+
+        @since 3.1.5
+    */
+    void ExtendRulesAndAlternateColour(bool extend = true);
+
 protected:
 
     /**
@@ -1442,7 +1469,7 @@ protected:
         control itself when this event is generated, see @ref
         overview_events_with_mouse_capture "event handling overview".
     @event{EVT_LIST_ITEM_DESELECTED(id, func)}
-        The item has been deselected.
+        The item has been deselected. GetIndex() may be -1 with virtual lists.
     @event{EVT_LIST_ITEM_ACTIVATED(id, func)}
         The item has been activated (ENTER or double click).
     @event{EVT_LIST_ITEM_FOCUSED(id, func)}
@@ -1783,7 +1810,7 @@ public:
       This is a bitlist of the following flags:
         - @c wxLIST_STATE_FOCUSED: The item has the focus.
         - @c wxLIST_STATE_SELECTED: The item is selected.
-        - @c wxLIST_STATE_DONTCARE: Don't care what the state is. Win32 only.
+        - @c wxLIST_STATE_DONTCARE: No special flags (the value of this constant is 0).
         - @c wxLIST_STATE_DROPHILITED: The item is highlighted to receive a drop event. Win32 only.
         - @c wxLIST_STATE_CUT: The item is in the cut state. Win32 only.
     - A mask indicating which state flags are valid; this is a bitlist of the
@@ -1875,7 +1902,7 @@ public:
         Returns a bit field representing the state of the item.
 
         Can be any combination of:
-        - wxLIST_STATE_DONTCARE: Don't care what the state is. Win32 only.
+        - wxLIST_STATE_DONTCARE: No special flags (the values of this constant is 0).
         - wxLIST_STATE_DROPHILITED: The item is highlighted to receive a drop event. Win32 only.
         - wxLIST_STATE_FOCUSED: The item has the focus.
         - wxLIST_STATE_SELECTED: The item is selected.
