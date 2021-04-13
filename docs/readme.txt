@@ -1,4 +1,4 @@
-wxWidgets 3.1.3 Release Notes
+wxWidgets 3.1.5 Release Notes
 =============================
 
 Welcome to the latest development release of wxWidgets, a free and open source
@@ -16,38 +16,49 @@ more about wxWidgets at:
 
 Documentation is available online at:
 
-* https://docs.wxwidgets.org/3.1.3/
+* https://docs.wxwidgets.org/3.1.5/
 
 wxWidgets sources and binaries for the selected platforms are available for
 download from:
 
-* https://github.com/wxWidgets/wxWidgets/releases/tag/v3.1.3/
+* https://www.wxwidgets.org/downloads/
+
+or, for a more more permanent but less convenient to use link, from
+
+* https://github.com/wxWidgets/wxWidgets/releases/tag/v3.1.5/
+
+Please see https://docs.wxwidgets.org/3.1.5/overview_install.html for full
+installation instructions.
 
 
-Changes since 3.1.2
+
+Changes since 3.1.4
 -------------------
 
-There have been almost 2000 commits from 97 unique contributors (52 with
-multiple contributions) since 3.1.2 releases, so it is impossible to summarize
-all the changes in this document without making it too long, please see the
-full changelog at
+In the nine months since the previous release, there have been more than 1600
+commits from 70 unique contributors (40 with multiple contributions), so it is
+impossible to summarize all the changes in this document without making it too
+long, please see the fuller changelog at
 
-https://raw.githubusercontent.com/wxWidgets/wxWidgets/v3.1.3/docs/changes.txt
+https://raw.githubusercontent.com/wxWidgets/wxWidgets/v3.1.5/docs/changes.txt
 
-for more details, but some of the most important changes are:
+for more details, but here are some of the most important changes:
 
-- Support for per-monitor DPI and dynamic DPI changes under MSW.
-- More generally, many fixes for various controls appearance in high DPI.
-- Long requested support for freezing rows and/or columns in wxGrid.
-- New XRC handlers for wxDataViewCtrl, wxInfoBar.
-- It is now possible to use gradients when creating wxGraphicsPen.
-- Extended compiler (MSVS 2019) and platforms (macOS 10.14+) support.
-- Significant improvements to the (still experimental) wxQt port.
-- Important bug fixes for focus handling in wxOSX port.
-
+- New wxWebRequest and related classes provide a simple way to use HTTPS and
+  HTTP/2 from wxWidgets applications using native libraries or libcurl.
+- Support EGL in wxGLCanvas and Wayland in wxMediaCtrl under Linux.
+- Many appearance and other fixes for macOS 11.
+- More improvements to wxGrid UI, API and performance.
+- wxImage improvements: add alpha support in Paste() and clipboard support.
+- API additions: wxPersistentComboBox, wxFileName::ResolveLink(),
+  wxFileHistory::SetMenuPathStyle(), wxString::utf8_string(), wxEVT_FULLSCREEN.
+- Improvements: wxConfig now supports 64-bit integers, wxLog uses millisecond
+  resolution in timestamps, XRC files can be loaded from URLs.
+- Yet more bug fixes, fixes for API inconsistencies and optimizations, notably
+  in wxDataViewCtrl, wxListCtrl, wxPropertyGrid.
 
 Notice that in spite of all the changes, this release remains almost completely
-compatible with 3.1.2 at the API level, so upgrading to it if you're already
+compatible with 3.1.4 at the API level, so upgrading to it if you're already
 using wxWidgets 3 should be straightforward.
 
 
@@ -58,29 +69,30 @@ Compared to the stable 3.0.x series, this version brings too many
 improvements and even more bug fixes to list them all, but here is the
 maximally condensed summary:
 
-- Build system improvements: support for new compilers (up to MSVS 2019, g++ 9)
+- Build system improvements: support for new compilers (up to MSVS 2019, g++ 10)
   with an even simpler way of using wxWidgets from MSVS, with wxwidgets.props
   file, and OS versions as well as an entirely new CMake build system.
 - Support for native dark mode under macOS 10.14 Mojave and later.
-- New features: support for mouse gesture events (GSoC 2017 project);
+- New features: HTTPS and HTTP/2 support with wxWebRequest and friends;
+  support for freezing rows/columns in wxGrid; mouse gesture events (GSoC 2017
+  project); non-integer font sizes and arbitrary font weights in wxFont;
   fractional pen widths in wxGraphicsContext; arbitrary label windows in
-  wxStaticBox; markup in wxDataViewCtrl items text; better support for high DPI
-  monitors; support for ZIP 64 files; much improved accessibility support under
-  MSW; Support for non-integer font sizes and arbitrary font weights; LZMA
-  compression support (using liblzma)/
-- New classes: wxActivityIndicator, wxAddRemoveCtrl,
-  wxAppProgressIndicator, wxNativeWindow, wxPowerResourceBlocker,
-  wxSecretStore.
-- And methods: wxDateTime::GetWeekBasedYear(), wxListBox::GetTopItem(),
-  wxProcess::Activate(), wxTextEntry::ForceUpper(), several ones in
-  wxRendererNative, wxStandardPaths::GetUserDir(), wxUIActionSimulator
-  ::Select() and many others.
-- Significant improvements to: wxBusyInfo, wxDataViewCtrl,
-  wxNotificationMessage, wxStaticBox, wxStyledTextCtrl.
+  wxStaticBox; markup in wxDataViewCtrl items text; better support for high
+  DPI monitors and per-monitor DPI and dynamic DPI changes support under MSW;
+  support for ZIP 64 files; LZMA compression; much improved accessibility
+  support under MSW; new Edge-based wxWebView implementation.
+- New classes: wxActivityIndicator, wxAddRemoveCtrl, wxAppProgressIndicator,
+  wxNativeWindow, wxPersistentComboBox, wxPowerResourceBlocker, wxSecretStore,
+  wxTempFFile and many new features in the existing classes.
+- Significant improvements to: wxBusyInfo, wxDataViewCtrl, wxDirDialog, wxGrid,
+  wxNotificationMessage, wxSpinCtrl, wxStaticBox, wxStyledTextCtrl,
+  wxUIActionSimulator.
 - Latest versions of all bundled 3rd party libraries, including all the
   security fixed and support for WebKit 2 and GStreamer 1.7 under Unix.
-- Revamped OpenGL support better suited to modern OpenGL (3.2+).
-- Further C++11 support improvements.
+- Revamped OpenGL support better suited to modern OpenGL (3.2+) and EGL support
+  and better support for Wayland in wxGTK.
+- Further C++11 and later support improvements, wxWidgets can be built using
+  C++20 compilers.
 - A lot of bug fixes, especially in wxGTK3 and wxOSX/Cocoa ports.
 - New experimental wxQt port.
 
@@ -93,7 +105,7 @@ This version of wxWidgets supports the following primary platforms:
 
 * Windows XP, Vista, 7, 8 and 10 (32/64 bits).
 * Most Unix variants using the GTK+ toolkit (version 2.6 or newer)
-* OS X (10.7 or newer) using Cocoa (32/64 bits)
+* macOS (10.10 or newer) using Cocoa (32/64 bits)
 
 There is some support for the following platforms:
 
@@ -102,39 +114,7 @@ There is some support for the following platforms:
 * Most Unix variants with GTK+ 1.2
 * Most Unix variants with Qt 5 or newer (experimental)
 
-All C++ compilers in common use are supported; see the install.txt file for
-each platform (following the links from docs/index.htm).
-
-
-Files
------
-
-wxWidgets is distributed in source form in several archive formats. ZIP and 7z
-archives are for Microsoft Windows users and contain the files with DOS/Windows
-line endings while the compressed tar archives are for Unix systems (including
-OS X) and contain the files with Unix line endings. Please notice that some
-Windows tools still don't accept files with Unix line endings and that compiling
-sources with DOS line endings under Unix will fail, so please choose the correct
-file for your system.
-
-In addition to the sources, documentation in HTML, CHM and HTB (wxWidgets help
-viewer) formats is provided as well as an installer for Microsoft Windows.
-Notice that you will still need to compile wxWidgets even when using the
-installer.
-
-We also supply binaries of wxMSW libraries built with several versions of
-Microsoft Visual C++ and GNU g++ compiler for this release.
-
-
-Installation
-------------
-
-Unless you have downloaded the binaries for your compiler, you will need to
-build wxWidgets before you can test out the samples or write your own
-applications. For installation information, please see the install.md files in
-the docs subdirectory appropriate for the platform you use or the "Platform
-Details" page of the manual, which contains links to the rendered versions of
-these files.
+All C++ compilers in common use are supported.
 
 
 Licence
@@ -210,4 +190,4 @@ developed by its users and your contributions to it are always welcome!
 
 Have fun!
 
-The wxWidgets Team, October 2019
+The wxWidgets Team, April 2021

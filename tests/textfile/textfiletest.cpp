@@ -12,9 +12,6 @@
 
 #include "testprec.h"
 
-#ifdef __BORLANDC__
-    #pragma hdrstop
-#endif
 
 #if wxUSE_TEXTFILE
 
@@ -344,10 +341,15 @@ void TextFileTestCase::ReadBig()
 // correspond to the real amount of data in them, works.
 TEST_CASE("wxTextFile::Special", "[textfile][linux][special-file]")
 {
+    // LXC containers don't (always) populate /proc and /sys, so skip these
+    // tests there.
+    if ( IsRunningInLXC() )
+        return;
+
     SECTION("/proc")
     {
         wxTextFile f;
-        CHECK( f.Open("/proc/diskstats") );
+        CHECK( f.Open("/proc/cpuinfo") );
         CHECK( f.GetLineCount() > 1 );
     }
 
@@ -357,7 +359,7 @@ TEST_CASE("wxTextFile::Special", "[textfile][linux][special-file]")
         CHECK( f.Open("/sys/power/state") );
         REQUIRE( f.GetLineCount() == 1 );
         INFO( "/sys/power/state contains \"" << f[0] << "\"" );
-        CHECK( f[0].find("mem") != wxString::npos );
+        CHECK( (f[0].find("mem") != wxString::npos || f[0].find("disk") != wxString::npos) );
     }
 }
 

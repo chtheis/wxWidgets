@@ -9,9 +9,6 @@
 // For compilers that support precompilation, includes "wx.h".
 #include "wx/wxprec.h"
 
-#ifdef __BORLANDC__
-    #pragma hdrstop
-#endif
 
 #if wxUSE_IMAGE
 
@@ -505,6 +502,12 @@ wxImage::Scale( int width, int height, wxImageResizeQuality quality ) const
 wxImage wxImage::ResampleNearest(int width, int height) const
 {
     wxImage image;
+
+    const unsigned long old_width  = M_IMGDATA->m_width;
+    const unsigned long old_height = M_IMGDATA->m_height;
+    wxCHECK_MSG(old_width  <= (ULONG_MAX >> 16) &&
+                old_height <= (ULONG_MAX >> 16), image, "image dimension too large");
+
     image.Create( width, height, false );
 
     unsigned char *data = image.GetData();
@@ -526,21 +529,19 @@ wxImage wxImage::ResampleNearest(int width, int height) const
         }
     }
 
-    long old_height = M_IMGDATA->m_height,
-         old_width  = M_IMGDATA->m_width;
-    long x_delta = (old_width<<16) / width;
-    long y_delta = (old_height<<16) / height;
+    const unsigned long x_delta = (old_width  << 16) / width;
+    const unsigned long y_delta = (old_height << 16) / height;
 
     unsigned char* dest_pixel = target_data;
 
-    long y = 0;
-    for ( long j = 0; j < height; j++ )
+    unsigned long y = 0;
+    for (int j = 0; j < height; j++)
     {
         const unsigned char* src_line = &source_data[(y>>16)*old_width*3];
         const unsigned char* src_alpha_line = source_alpha ? &source_alpha[(y>>16)*old_width] : 0 ;
 
-        long x = 0;
-        for ( long i = 0; i < width; i++ )
+        unsigned long x = 0;
+        for (int i = 0; i < width; i++)
         {
             const unsigned char* src_pixel = &src_line[(x>>16)*3];
             const unsigned char* src_alpha_pixel = source_alpha ? &src_alpha_line[(x>>16)] : 0 ;
@@ -633,6 +634,8 @@ wxImage wxImage::ResampleBox(int width, int height) const
     const unsigned char* src_alpha = M_IMGDATA->m_alpha;
     unsigned char* dst_data = ret_image.GetData();
     unsigned char* dst_alpha = NULL;
+
+    wxCHECK_MSG( dst_data, ret_image, wxS("unable to create image") );
 
     if ( src_alpha )
     {
@@ -780,6 +783,8 @@ wxImage wxImage::ResampleBilinear(int width, int height) const
     const unsigned char* src_alpha = M_IMGDATA->m_alpha;
     unsigned char* dst_data = ret_image.GetData();
     unsigned char* dst_alpha = NULL;
+
+    wxCHECK_MSG( dst_data, ret_image, wxS("unable to create image") );
 
     if ( src_alpha )
     {
@@ -959,6 +964,8 @@ wxImage wxImage::ResampleBicubic(int width, int height) const
     const unsigned char* src_alpha = M_IMGDATA->m_alpha;
     unsigned char* dst_data = ret_image.GetData();
     unsigned char* dst_alpha = NULL;
+
+    wxCHECK_MSG( dst_data, ret_image, wxS("unable to create image") );
 
     if ( src_alpha )
     {
@@ -1313,8 +1320,8 @@ wxImage wxImage::Rotate90( bool clockwise ) const
 
         for (long j = 0; j < height; j++)
         {
-            const unsigned char *source_data
-                                     = M_IMGDATA->m_data + (j*width + ii)*3;
+            const unsigned char *source_data =
+                M_IMGDATA->m_data + (j*width + ii)*3;
 
             for (long i = ii; i < next_ii; i++)
             {
@@ -1604,7 +1611,9 @@ wxImage wxImage::Size( const wxSize& size, const wxPoint& pos,
     return image;
 }
 
-void wxImage::Paste( const wxImage &image, int x, int y )
+void
+wxImage::Paste(const wxImage & image, int x, int y,
+               wxImageAlphaBlendMode alphaBlend)
 {
     wxCHECK_RET( IsOk(), wxT("invalid image") );
     wxCHECK_RET( image.IsOk(), wxT("invalid image") );
@@ -1635,15 +1644,18 @@ void wxImage::Paste( const wxImage &image, int x, int y )
     if (width < 1) return;
     if (height < 1) return;
 
+    bool copiedPixels = false;
+
     // If we can, copy the data using memcpy() as this is the fastest way. But
-    // for this  the image being pasted must have "compatible" mask with this
-    // one meaning that either it must not have one at all or it must use the
-    // same masked colour.
-    if ( !image.HasMask() ||
+    // for this we must not do alpha compositing and the image being pasted
+    // must have "compatible" mask with this one meaning that either it must
+    // not have one at all or it must use the same masked colour.
+    if (alphaBlend == wxIMAGE_ALPHA_BLEND_OVER &&
+        (!image.HasMask() ||
         ((HasMask() &&
          (GetMaskRed()==image.GetMaskRed()) &&
          (GetMaskGreen()==image.GetMaskGreen()) &&
-         (GetMaskBlue()==image.GetMaskBlue()))) )
+         (GetMaskBlue()==image.GetMaskBlue())))) )
     {
         const unsigned char* source_data = image.GetData() + 3*(xx + yy*image.GetWidth());
         int source_step = image.GetWidth()*3;
@@ -1656,6 +1668,8 @@ void wxImage::Paste( const wxImage &image, int x, int y )
             source_data += source_step;
             target_data += target_step;
         }
+
+        copiedPixels = true;
     }
 
     // Copy over the alpha channel from the original image
@@ -1664,45 +1678,126 @@ void wxImage::Paste( const wxImage &image, int x, int y )
         if ( !HasAlpha() )
             InitAlpha();
 
-        const unsigned char* source_data = image.GetAlpha() + xx + yy*image.GetWidth();
-        int source_step = image.GetWidth();
+        const unsigned char*
+            alpha_source_data = image.GetAlpha() + xx + yy * image.GetWidth();
+        const int source_step = image.GetWidth();
 
-        unsigned char* target_data = GetAlpha() + (x+xx) + (y+yy)*M_IMGDATA->m_width;
-        int target_step = M_IMGDATA->m_width;
+        unsigned char*
+            alpha_target_data = GetAlpha() + (x + xx) + (y + yy) * M_IMGDATA->m_width;
+        const int target_step = M_IMGDATA->m_width;
 
-        for (int j = 0; j < height; j++,
-                                    source_data += source_step,
-                                    target_data += target_step)
+        switch (alphaBlend)
         {
-            memcpy( target_data, source_data, width );
+            case wxIMAGE_ALPHA_BLEND_OVER:
+            {
+                // Copy just the alpha values.
+                for (int j = 0; j < height; j++,
+                     alpha_source_data += source_step,
+                     alpha_target_data += target_step)
+                {
+                    memcpy(alpha_target_data, alpha_source_data, width);
+                }
+                break;
+            }
+            case wxIMAGE_ALPHA_BLEND_COMPOSE:
+            {
+                const unsigned char*
+                    source_data = image.GetData() + 3 * (xx + yy * image.GetWidth());
+
+                unsigned char*
+                    target_data = GetData() + 3 * ((x + xx) + (y + yy) * M_IMGDATA->m_width);
+
+                // Combine the alpha values but also apply alpha blending to
+                // the pixels themselves while we copy them.
+                for (int j = 0; j < height; j++,
+                     alpha_source_data += source_step,
+                     alpha_target_data += target_step,
+                     source_data += 3 * source_step,
+                     target_data += 3 * target_step)
+                {
+                    for (int i = 0; i < width; i++)
+                    {
+                        float source_alpha = alpha_source_data[i] / 255.0f;
+                        float light_left = (alpha_target_data[i] / 255.0f) * (1.0f - source_alpha);
+                        float result_alpha = source_alpha + light_left;
+                        alpha_target_data[i] = (unsigned char)((result_alpha * 255) + 0.5f);
+                        for (int c = 3 * i; c < 3 * (i + 1); c++)
+                        {
+                            target_data[c] =
+                                (unsigned char)(((source_data[c] * source_alpha +
+                                    target_data[c] * light_left) /
+                                result_alpha) + 0.5f);
+                        }
+                    }
+                }
+
+                copiedPixels = true;
+                break;
+            }
         }
+
     }
 
-    if (!HasMask() && image.HasMask())
+    // If we hadn't copied them yet we must need to take the mask of the image
+    // being pasted into account.
+    if (!copiedPixels)
     {
-        unsigned char r = image.GetMaskRed();
-        unsigned char g = image.GetMaskGreen();
-        unsigned char b = image.GetMaskBlue();
+        const unsigned char* source_data = image.GetData() + 3 * (xx + yy * image.GetWidth());
+        int source_step = image.GetWidth() * 3;
 
-        const unsigned char* source_data = image.GetData() + 3*(xx + yy*image.GetWidth());
-        int source_step = image.GetWidth()*3;
+        unsigned char* target_data = GetData() + 3 * ((x + xx) + (y + yy) * M_IMGDATA->m_width);
+        int target_step = M_IMGDATA->m_width * 3;
 
-        unsigned char* target_data = GetData() + 3*((x+xx) + (y+yy)*M_IMGDATA->m_width);
-        int target_step = M_IMGDATA->m_width*3;
-
-        for (int j = 0; j < height; j++)
+        unsigned char* alpha_target_data = NULL;
+        const int target_alpha_step = M_IMGDATA->m_width;
+        if (HasAlpha())
         {
-            for (int i = 0; i < width*3; i+=3)
+            alpha_target_data = GetAlpha() + (x + xx) + (y + yy) * M_IMGDATA->m_width;
+        }
+
+        // The mask colours should only be taken into account if the mask is actually enabled
+        if (!image.HasMask())
+        {
+            // Copy all pixels
+            for (int j = 0; j < height; j++)
             {
-                if ((source_data[i]   != r) ||
-                    (source_data[i+1] != g) ||
-                    (source_data[i+2] != b))
+                memcpy(target_data, source_data, width * 3);
+                source_data += source_step;
+                target_data += target_step;
+                // Make all the copied pixels fully opaque
+                if (alpha_target_data != NULL)
                 {
-                    memcpy( target_data+i, source_data+i, 3 );
+                    memset(alpha_target_data, wxALPHA_OPAQUE, width);
+                    alpha_target_data += target_alpha_step;
                 }
             }
-            source_data += source_step;
-            target_data += target_step;
+        }
+        else
+        {
+            // Copy all 'non masked' pixels
+            unsigned char r = image.GetMaskRed();
+            unsigned char g = image.GetMaskGreen();
+            unsigned char b = image.GetMaskBlue();
+
+            for (int j = 0; j < height; j++)
+            {
+                for (int i = 0; i < width * 3; i += 3)
+                {
+                    if ((source_data[i] != r) ||
+                        (source_data[i + 1] != g) ||
+                        (source_data[i + 2] != b))
+                    {
+                        // Copy the non masked pixel
+                        memcpy(target_data + i, source_data + i, 3);
+                        if (alpha_target_data != NULL) // Make the copied pixel fully opaque
+                            alpha_target_data[i / 3] = wxALPHA_OPAQUE;
+                    }
+                }
+                source_data += source_step;
+                target_data += target_step;
+                if (alpha_target_data != NULL)
+                    alpha_target_data += target_alpha_step;
+            }
         }
     }
 }
@@ -2637,7 +2732,7 @@ bool wxImage::SaveFile( const wxString& WXUNUSED_UNLESS_STREAMS(filename),
 #if HAS_FILE_STREAMS
     wxCHECK_MSG( IsOk(), false, wxT("invalid image") );
 
-    ((wxImage*)this)->SetOption(wxIMAGE_OPTION_FILENAME, filename);
+    const_cast<wxImage*>(this)->SetOption(wxIMAGE_OPTION_FILENAME, filename);
 
     wxImageFileOutputStream stream(filename);
 
@@ -2657,7 +2752,7 @@ bool wxImage::SaveFile( const wxString& WXUNUSED_UNLESS_STREAMS(filename),
 #if HAS_FILE_STREAMS
     wxCHECK_MSG( IsOk(), false, wxT("invalid image") );
 
-    ((wxImage*)this)->SetOption(wxIMAGE_OPTION_FILENAME, filename);
+    const_cast<wxImage*>(this)->SetOption(wxIMAGE_OPTION_FILENAME, filename);
 
     wxImageFileOutputStream stream(filename);
 
@@ -3223,9 +3318,9 @@ wxImage::RGBValue wxImage::HSVtoRGB(const HSVValue& hsv)
         }
     }
 
-    return RGBValue((unsigned char)(red * 255.0),
-                    (unsigned char)(green * 255.0),
-                    (unsigned char)(blue * 255.0));
+    return RGBValue((unsigned char)wxRound(red * 255.0),
+                    (unsigned char)wxRound(green * 255.0),
+                    (unsigned char)wxRound(blue * 255.0));
 }
 
 /*
@@ -3376,49 +3471,6 @@ wxImageHandler::GetResolutionFromOptions(const wxImage& image, int *x, int *y)
 // ----------------------------------------------------------------------------
 // image histogram stuff
 // ----------------------------------------------------------------------------
-
-bool
-wxImageHistogram::FindFirstUnusedColour(unsigned char *r,
-                                        unsigned char *g,
-                                        unsigned char *b,
-                                        unsigned char r2,
-                                        unsigned char g2,
-                                        unsigned char b2) const
-{
-    unsigned long key = MakeKey(r2, g2, b2);
-
-    while ( find(key) != end() )
-    {
-        // color already used
-        r2++;
-        if ( r2 >= 255 )
-        {
-            r2 = 0;
-            g2++;
-            if ( g2 >= 255 )
-            {
-                g2 = 0;
-                b2++;
-                if ( b2 >= 255 )
-                {
-                    wxLogError(_("No unused colour in image.") );
-                    return false;
-                }
-            }
-        }
-
-        key = MakeKey(r2, g2, b2);
-    }
-
-    if ( r )
-        *r = r2;
-    if ( g )
-        *g = g2;
-    if ( b )
-        *b = b2;
-
-    return true;
-}
 
 bool
 wxImage::FindFirstUnusedColour(unsigned char *r,

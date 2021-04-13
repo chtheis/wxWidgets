@@ -16,9 +16,6 @@
 // For compilers that support precompilation, includes "wx.h".
 #include "wx/wxprec.h"
 
-#ifdef __BORLANDC__
-    #pragma hdrstop
-#endif
 
 #if wxUSE_LISTCTRL
 
@@ -57,9 +54,6 @@
 // ----------------------------------------------------------------------------
 // constants
 // ----------------------------------------------------------------------------
-
-// // the height of the header window (FIXME: should depend on its font!)
-// static const int HEADER_HEIGHT = 23;
 
 static const int SCROLL_UNIT_X = 15;
 
@@ -953,6 +947,7 @@ bool wxListLineData::Highlight( bool on )
         return false;
 
     m_highlighted = on;
+    m_owner->UpdateSelectionCount(on);
 
     return true;
 }
@@ -1047,7 +1042,7 @@ void wxListHeaderWindow::AdjustDC(wxDC& dc)
     dc.GetDeviceOrigin( &org_x, &org_y );
 
     // account for the horz scrollbar offset
-#ifdef __WXGTK__
+#if defined(__WXGTK__) && !defined(__WXGTK3__)
     if (GetLayoutDirection() == wxLayout_RightToLeft)
     {
         // Maybe we just have to check for m_signX
@@ -1211,35 +1206,9 @@ void wxListHeaderWindow::OnInternalIdle()
 
 void wxListHeaderWindow::DrawCurrent()
 {
-#if 1
-    // m_owner->SetColumnWidth( m_column, m_currentX - m_minX );
     m_sendSetColumnWidth = true;
     m_colToSend = m_column;
     m_widthToSend = m_currentX - m_minX;
-#else
-    int x1 = m_currentX;
-    int y1 = 0;
-    m_owner->ClientToScreen( &x1, &y1 );
-
-    int x2 = m_currentX;
-    int y2 = 0;
-    m_owner->GetClientSize( NULL, &y2 );
-    m_owner->ClientToScreen( &x2, &y2 );
-
-    wxScreenDC dc;
-    dc.SetLogicalFunction( wxINVERT );
-    dc.SetPen( wxPen(*wxBLACK, 2) );
-    dc.SetBrush( *wxTRANSPARENT_BRUSH );
-
-    AdjustDC(dc);
-
-    dc.DrawLine( x1, y1, x2, y2 );
-
-    dc.SetLogicalFunction( wxCOPY );
-
-    dc.SetPen( wxNullPen );
-    dc.SetBrush( wxNullBrush );
-#endif
 }
 
 void wxListHeaderWindow::OnMouse( wxMouseEvent &event )
@@ -1249,7 +1218,6 @@ void wxListHeaderWindow::OnMouse( wxMouseEvent &event )
     // we want to work with logical coords
     int x;
     parent->CalcUnscrolledPosition(event.GetX(), 0, &x, NULL);
-    int y = event.GetY();
 
     if (m_isDragging)
     {
@@ -1302,7 +1270,7 @@ void wxListHeaderWindow::OnMouse( wxMouseEvent &event )
             xpos += m_owner->GetColumnWidth( col );
             m_column = col;
 
-            if ( (abs(x-xpos) < 3) && (y < 22) )
+            if ( abs(x-xpos) < 3 )
             {
                 // near the column border
                 hit_border = true;
@@ -1601,6 +1569,7 @@ wxEND_EVENT_TABLE()
 void wxListMainWindow::Init()
 {
     m_dirty = true;
+    m_selCount =
     m_countVirt = 0;
     m_lineFrom =
     m_lineTo = (size_t)-1;
@@ -1628,9 +1597,11 @@ void wxListMainWindow::Init()
     m_current =
     m_lineLastClicked =
     m_lineSelectSingleOnUp =
-    m_lineBeforeLastClicked = (size_t)-1;
+    m_lineBeforeLastClicked =
+    m_anchor  = (size_t)-1;
 
     m_hasCheckBoxes = false;
+    m_extendRulesAndAlternateColour = false;
 }
 
 wxListMainWindow::wxListMainWindow()
@@ -1896,8 +1867,13 @@ bool wxListMainWindow::IsHighlighted(size_t line) const
 
 void wxListMainWindow::HighlightLines( size_t lineFrom,
                                        size_t lineTo,
-                                       bool highlight )
+                                       bool highlight,
+                                       SendEvent sendEvent )
 {
+    // It is safe to swap the bounds here if they are not in order.
+    if ( lineFrom > lineTo )
+        wxSwap(lineFrom, lineTo);
+
     if ( IsVirtual() )
     {
         wxArrayInt linesChanged;
@@ -1920,13 +1896,13 @@ void wxListMainWindow::HighlightLines( size_t lineFrom,
     {
         for ( size_t line = lineFrom; line <= lineTo; line++ )
         {
-            if ( HighlightLine(line, highlight) )
+            if ( HighlightLine(line, highlight, sendEvent) )
                 RefreshLine(line);
         }
     }
 }
 
-bool wxListMainWindow::HighlightLine( size_t line, bool highlight )
+bool wxListMainWindow::HighlightLine( size_t line, bool highlight, SendEvent sendEvent )
 {
     bool changed;
 
@@ -1942,7 +1918,7 @@ bool wxListMainWindow::HighlightLine( size_t line, bool highlight )
         changed = ld->Highlight(highlight);
     }
 
-    if ( changed )
+    if ( changed && sendEvent )
     {
         SendNotify( line, highlight ? wxEVT_LIST_ITEM_SELECTED
                                     : wxEVT_LIST_ITEM_DESELECTED );
@@ -2097,7 +2073,22 @@ void wxListMainWindow::OnPaint( wxPaintEvent &WXUNUSED(event) )
         int lineHeight = GetLineHeight();
 
         size_t visibleFrom, visibleTo;
+        const size_t linesPerPage = (unsigned int) m_linesPerPage;
         GetVisibleLinesRange(&visibleFrom, &visibleTo);
+
+        // We may need to iterate beyond visibleTo if we want to draw striped
+        // background across the entire window.
+        size_t visibleEnd;
+        wxColour colAlt;
+        if ( m_extendRulesAndAlternateColour )
+        {
+            colAlt = GetListCtrl()->GetAlternateRowColour();
+            visibleEnd = wxMax(linesPerPage, visibleTo);
+        }
+        else
+        {
+            visibleEnd = visibleTo;
+        }
 
         wxRect rectLine;
         int xOrig = dc.LogicalToDeviceX( 0 );
@@ -2115,7 +2106,7 @@ void wxListMainWindow::OnPaint( wxPaintEvent &WXUNUSED(event) )
             GetParent()->GetEventHandler()->ProcessEvent( evCache );
         }
 
-        for ( size_t line = visibleFrom; line <= visibleTo; line++ )
+        for ( size_t line = visibleFrom; line <= visibleEnd; line++ )
         {
             rectLine = GetLineRect(line);
 
@@ -2124,6 +2115,21 @@ void wxListMainWindow::OnPaint( wxPaintEvent &WXUNUSED(event) )
                             rectLine.width, rectLine.height) )
             {
                 // don't redraw unaffected lines to avoid flicker
+                continue;
+            }
+
+            if ( line > visibleTo )
+            {
+                // We only iterate beyond visibleTo when we have to draw the
+                // odd rows background, so do this if needed.
+                if ( line % 2 )
+                {
+                    dc.SetBrush(colAlt);
+                    dc.SetPen(*wxTRANSPARENT_PEN);
+                    dc.DrawRectangle(rectLine);
+                }
+
+                // But don't do anything else, as there is no valid item.
                 continue;
             }
 
@@ -2141,7 +2147,7 @@ void wxListMainWindow::OnPaint( wxPaintEvent &WXUNUSED(event) )
 
             size_t i = visibleFrom;
             if (i == 0) i = 1; // Don't draw the first one
-            for ( ; i <= visibleTo; i++ )
+            for ( ; i <= visibleEnd; i++ )
             {
                 dc.SetPen(pen);
                 dc.SetBrush( *wxTRANSPARENT_BRUSH );
@@ -2150,7 +2156,7 @@ void wxListMainWindow::OnPaint( wxPaintEvent &WXUNUSED(event) )
             }
 
             // Draw last horizontal rule
-            if ( visibleTo == GetItemCount() - 1 )
+            if ( visibleEnd == GetItemCount() - 1 )
             {
                 dc.SetPen( pen );
                 dc.SetBrush( *wxTRANSPARENT_BRUSH );
@@ -2160,7 +2166,8 @@ void wxListMainWindow::OnPaint( wxPaintEvent &WXUNUSED(event) )
         }
 
         // Draw vertical rules if required
-        if ( HasFlag(wxLC_VRULES) && !IsEmpty() )
+        if ( HasFlag(wxLC_VRULES) &&
+                (m_extendRulesAndAlternateColour || !IsEmpty()) )
         {
             wxPen pen(GetRuleColour(), 1, wxPENSTYLE_SOLID);
             wxRect firstItemRect, lastItemRect;
@@ -2171,14 +2178,22 @@ void wxListMainWindow::OnPaint( wxPaintEvent &WXUNUSED(event) )
             dc.SetPen(pen);
             dc.SetBrush(* wxTRANSPARENT_BRUSH);
 
+            int clientHeight, clientWidth;
+            GetSize( &clientWidth, &clientHeight );
+
             for (int col = 0; col < GetColumnCount(); col++)
             {
                 int colWidth = GetColumnWidth(col);
                 x += colWidth;
                 int x_pos = x - dev_x;
                 if (col < GetColumnCount()-1) x_pos -= 2;
+
+                int ruleHeight = m_extendRulesAndAlternateColour && visibleEnd > visibleTo
+                                    ? clientHeight
+                                    : lastItemRect.GetBottom() + 1 - dev_y;
+
                 dc.DrawLine(x_pos, firstItemRect.GetY() - 1 - dev_y,
-                            x_pos, lastItemRect.GetBottom() + 1 - dev_y);
+                            x_pos, ruleHeight);
             }
         }
     }
@@ -2227,6 +2242,58 @@ void wxListMainWindow::HighlightAll( bool on )
     }
 }
 
+void wxListMainWindow::HighlightOnly( size_t line, size_t oldLine )
+{
+    const unsigned selCount = GetSelectedItemCount();
+
+    if ( selCount == 1 && IsHighlighted(line) )
+    {
+        return; // Nothing changed.
+    }
+
+    if ( oldLine != (size_t)-1 )
+    {
+        IsHighlighted(oldLine) ? ReverseHighlight(oldLine)
+                               : RefreshLine(oldLine); // refresh the old focus to remove it
+    }
+
+    if ( selCount > 1 ) // multiple-selection only
+    {
+        // Deselecting many items at once will generate wxEVT_XXX_DESELECTED event
+        // for each one of them. although this may be inefficient if the number of
+        // deselected items is too much, we keep doing this (for non-virtual list
+        // controls) for backward compatibility concerns. For virtual listctrl (in
+        // multi-selection mode), wxMSW sends only a notification to indicate that
+        // something has been deselected. Notice that to be fully compatible with
+        // wxMSW behaviour, _line_ shouldn't be deselected if it was selected.
+
+        const SendEvent sendEvent = IsVirtual() ? SendEvent_None : SendEvent_Normal;
+
+        size_t lineFrom = 0,
+               lineTo   = GetItemCount() - 1;
+
+        if ( line > lineFrom && line < lineTo )
+        {
+            HighlightLines(lineFrom, line - 1, false, sendEvent);
+            HighlightLines(line + 1, lineTo, false, sendEvent);
+        }
+        else // _line_ is equal to lineFrom or lineTo
+        {
+            line == lineFrom ? ++lineFrom : --lineTo;
+            HighlightLines(lineFrom, lineTo, false, sendEvent);
+        }
+
+        // If we didn't send the event for individual items above, send it for all of them now.
+        if ( sendEvent == SendEvent_None )
+            SendNotify((size_t)-1, wxEVT_LIST_ITEM_DESELECTED);
+    }
+
+    // _line_ should be the only selected item.
+    HighlightLine(line);
+    // refresh the new focus to add it.
+    RefreshLine(line);
+}
+
 void wxListMainWindow::OnChildFocus(wxChildFocusEvent& WXUNUSED(event))
 {
     // Do nothing here.  This prevents the default handler in wxScrolledWindow
@@ -2271,8 +2338,13 @@ void wxListMainWindow::SendNotify( size_t line,
     GetParent()->GetEventHandler()->ProcessEvent( le );
 }
 
-void wxListMainWindow::ChangeCurrent(size_t current)
+bool wxListMainWindow::ChangeCurrentWithoutEvent(size_t current)
 {
+    if ( current == m_current )
+    {
+        return false; // Nothing changed!
+    }
+
     m_current = current;
 
     // as the current item changed, we shouldn't start editing it when the
@@ -2280,7 +2352,13 @@ void wxListMainWindow::ChangeCurrent(size_t current)
     if ( m_renameTimer->IsRunning() )
         m_renameTimer->Stop();
 
-    SendNotify(current, wxEVT_LIST_ITEM_FOCUSED);
+    return true;
+}
+
+void wxListMainWindow::ChangeCurrent(size_t current)
+{
+    if ( ChangeCurrentWithoutEvent(current) )
+        SendNotify(current, wxEVT_LIST_ITEM_FOCUSED);
 }
 
 wxTextCtrl *wxListMainWindow::EditLabel(long item, wxClassInfo* textControlClass)
@@ -2426,7 +2504,11 @@ void wxListMainWindow::OnMouse( wxMouseEvent &event )
             evtCtx.SetEventObject(GetParent());
             GetParent()->GetEventHandler()->ProcessEvent(evtCtx);
         }
-        return;
+
+        if ( IsEmpty() )
+            return;
+
+        // Continue processing...
     }
 
     if (m_dirty)
@@ -2473,7 +2555,8 @@ void wxListMainWindow::OnMouse( wxMouseEvent &event )
     else
         m_dragCount = 0;
 
-    // The only mouse event that can be generated without any valid item is
+    // The only mouse events that can be generated without any valid item are
+    // wxEVT_LIST_ITEM_DESELECTED for virtual lists, and
     // wxEVT_LIST_ITEM_RIGHT_CLICK as it can be useful to have a global
     // popup menu for the list control itself which should be shown even when
     // the user clicks outside of any item.
@@ -2493,6 +2576,10 @@ void wxListMainWindow::OnMouse( wxMouseEvent &event )
         {
             // reset the selection and bail out
             HighlightAll(false);
+            // generate a DESELECTED event for
+            // virtual multi-selection lists
+            if ( IsVirtual() && !IsSingleSel() )
+                SendNotify( m_lineLastClicked, wxEVT_LIST_ITEM_DESELECTED );
         }
 
         return;
@@ -2546,8 +2633,7 @@ void wxListMainWindow::OnMouse( wxMouseEvent &event )
         if (m_lineSelectSingleOnUp != (size_t)-1)
         {
             // select single line
-            HighlightAll( false );
-            ReverseHighlight(m_lineSelectSingleOnUp);
+            HighlightOnly(m_lineSelectSingleOnUp);
         }
 
         if (m_lastOnSame)
@@ -2565,6 +2651,14 @@ void wxListMainWindow::OnMouse( wxMouseEvent &event )
             }
 
             m_lastOnSame = false;
+        }
+
+        if ( GetSelectedItemCount() == 1 || event.CmdDown() )
+        {
+            // In multiple selection mode, the anchor is set to the first selected
+            // item or can be changed to m_current if Ctrl key is down, as is the
+            // case under wxMSW.
+            m_anchor = m_current;
         }
 
         m_lineSelectSingleOnUp = (size_t)-1;
@@ -2586,9 +2680,8 @@ void wxListMainWindow::OnMouse( wxMouseEvent &event )
         // Multi-selections should not be cleared if a selected item is clicked.
         if (!IsHighlighted(current))
         {
-            HighlightAll(false);
             ChangeCurrent(current);
-            ReverseHighlight(m_current);
+            HighlightOnly(m_current);
         }
 
         SendNotify( current, wxEVT_LIST_ITEM_RIGHT_CLICK, event.GetPosition() );
@@ -2606,7 +2699,7 @@ void wxListMainWindow::OnMouse( wxMouseEvent &event )
         m_lineLastClicked = current;
 
         size_t oldCurrent = m_current;
-        bool oldWasSelected = IsHighlighted(m_current);
+        bool oldWasSelected = HasCurrent() && IsHighlighted(m_current);
 
         bool cmdModifierDown = event.CmdDown();
         if ( IsSingleSel() || !(cmdModifierDown || event.ShiftDown()) )
@@ -2617,11 +2710,8 @@ void wxListMainWindow::OnMouse( wxMouseEvent &event )
             }
             else if (IsSingleSel() || !IsHighlighted(current))
             {
-                HighlightAll(false);
-
                 ChangeCurrent(current);
-
-                ReverseHighlight(m_current);
+                HighlightOnly(m_current, oldWasSelected ? oldCurrent : (size_t)-1);
             }
             else // multi sel & current is highlighted & no mod keys
             {
@@ -2641,16 +2731,15 @@ void wxListMainWindow::OnMouse( wxMouseEvent &event )
             {
                 ChangeCurrent(current);
 
-                size_t lineFrom = oldCurrent,
-                       lineTo = current;
-
-                if ( lineTo < lineFrom )
+                if ( oldCurrent == (size_t)-1 )
                 {
-                    lineTo = lineFrom;
-                    lineFrom = m_current;
+                    // Highlight m_current only if there is no previous selection.
+                    HighlightLine(m_current);
                 }
-
-                HighlightLines(lineFrom, lineTo);
+                else if ( oldCurrent != current && m_anchor != (size_t)-1 )
+                {
+                    ExtendSelection(oldCurrent, current);
+                }
             }
             else // !ctrl, !shift
             {
@@ -2659,7 +2748,7 @@ void wxListMainWindow::OnMouse( wxMouseEvent &event )
             }
         }
 
-        if (m_current != oldCurrent)
+        if (m_current != oldCurrent && oldCurrent != (size_t)-1)
             RefreshLine( oldCurrent );
 
         // Set the flag telling us whether the next click on this item should
@@ -2764,6 +2853,81 @@ bool wxListMainWindow::ScrollList(int WXUNUSED(dx), int dy)
 // keyboard handling
 // ----------------------------------------------------------------------------
 
+// Helper function which handles items selection correctly and efficiently. and
+// simply, mimic the wxMSW behaviour. And The benefit of this function is that it
+// ensures that wxEVT_LIST_ITEM_{DE}SELECTED events are only generated for items
+// freshly (de)selected (i.e. items that have really changed state). Useful for
+// multi-selection mode when selecting using mouse or arrows with Shift key down.
+void wxListMainWindow::ExtendSelection(size_t oldCurrent, size_t newCurrent)
+{
+    // Refresh the old/new focus to remove/add it
+    RefreshLine(oldCurrent);
+    RefreshLine(newCurrent);
+
+    // Given a selection [anchor, old], to change/extend it to new (i.e. the
+    // selection becomes [anchor, new]) we discriminate three possible cases:
+    //
+    // Case 1) new < old <= anchor || anchor <= old < new
+    // i.e. oldCurrent between anchor and newCurrent, in which case we:
+    // - Highlight everything between anchor and newCurrent (inclusive).
+    //
+    // Case 2) old < new <= anchor || anchor <= new < old
+    // i.e. newCurrent between anchor and oldCurrent, in which case we:
+    // - Unhighlight everything between oldCurrent and newCurrent (exclusive).
+    //
+    // Case 3) old < anchor < new || new < anchor < old
+    // i.e. anchor between oldCurrent and newCurrent, in which case we
+    // - Highlight everything between anchor and newCurrent (inclusive).
+    // - Unhighlight everything between anchor (exclusive) and oldCurrent.
+
+    size_t lineFrom, lineTo;
+
+    if ( (newCurrent < oldCurrent && oldCurrent <= m_anchor) ||
+         (newCurrent > oldCurrent && oldCurrent >= m_anchor) )
+    {
+        lineFrom = m_anchor;
+        lineTo   = newCurrent;
+
+        HighlightLines(lineFrom, lineTo);
+    }
+    else if ( (oldCurrent < newCurrent && newCurrent <= m_anchor) ||
+              (oldCurrent > newCurrent && newCurrent >= m_anchor) )
+    {
+        lineFrom = oldCurrent;
+        lineTo   = newCurrent;
+
+        // Exclude newCurrent from being deselected
+        (lineTo < lineFrom) ? ++lineTo : --lineTo;
+
+        HighlightLines(lineFrom, lineTo, false);
+
+        // For virtual listctrl (in multi-selection mode), wxMSW sends only
+        // a notification to indicate that something has been deselected.
+        if ( IsVirtual() )
+            SendNotify((size_t)-1, wxEVT_LIST_ITEM_DESELECTED);
+    }
+    else if ( (oldCurrent < m_anchor && m_anchor < newCurrent) ||
+              (newCurrent < m_anchor && m_anchor < oldCurrent) )
+    {
+        lineFrom = m_anchor;
+        lineTo   = oldCurrent;
+
+        // Exclude anchor from being deselected
+        (lineTo < lineFrom) ? --lineFrom : ++lineFrom;
+
+        HighlightLines(lineFrom, lineTo, false);
+
+        // See above.
+        if ( IsVirtual() )
+            SendNotify((size_t)-1, wxEVT_LIST_ITEM_DESELECTED);
+
+        lineFrom = m_anchor;
+        lineTo   = newCurrent;
+
+        HighlightLines(lineFrom, lineTo);
+    }
+}
+
 void wxListMainWindow::OnArrowChar(size_t newCurrent, const wxKeyEvent& event)
 {
     wxCHECK_RET( newCurrent < (size_t)GetItemCount(),
@@ -2771,42 +2935,33 @@ void wxListMainWindow::OnArrowChar(size_t newCurrent, const wxKeyEvent& event)
 
     size_t oldCurrent = m_current;
 
+    ChangeCurrent(newCurrent);
+
     // in single selection we just ignore Shift as we can't select several
     // items anyhow
     if ( event.ShiftDown() && !IsSingleSel() )
     {
-        ChangeCurrent(newCurrent);
-
-        // refresh the old focus to remove it
-        RefreshLine( oldCurrent );
-
-        // select all the items between the old and the new one
-        if ( oldCurrent > newCurrent )
-        {
-            newCurrent = oldCurrent;
-            oldCurrent = m_current;
-        }
-
-        HighlightLines(oldCurrent, newCurrent);
+        ExtendSelection(oldCurrent, newCurrent);
     }
     else // !shift
     {
-        // all previously selected items are unselected unless ctrl is held
-        // in a multiselection control
+        // all previously selected items are unselected unless ctrl is held in
+        // a multi-selection control. in single selection mode we must always
+        // have a selected item.
         if ( !event.ControlDown() || IsSingleSel() )
-            HighlightAll(false);
+        {
+            HighlightOnly(m_current, oldCurrent);
 
-        ChangeCurrent(newCurrent);
-
-        // refresh the old focus to remove it
-        RefreshLine( oldCurrent );
-
-        // in single selection mode we must always have a selected item
-        if ( !event.ControlDown() || IsSingleSel() )
-            HighlightLine( m_current, true );
+            // Update anchor
+            m_anchor = m_current;
+        }
+        else
+        {
+            // refresh the old/new focus to remove/add it
+            RefreshLine(oldCurrent);
+            RefreshLine(m_current);
+        }
     }
-
-    RefreshLine( m_current );
 
     MoveToFocus();
 }
@@ -2824,10 +2979,11 @@ void wxListMainWindow::OnKeyDown( wxKeyEvent &event )
 
     // send a list event
     wxListEvent le( wxEVT_LIST_KEY_DOWN, parent->GetId() );
+    const size_t current = ShouldSendEventForCurrent() ? m_current : (size_t)-1;
     le.m_item.m_itemId =
-    le.m_itemIndex = m_current;
-    if (HasCurrent())
-        GetLine(m_current)->GetItem( 0, le.m_item );
+    le.m_itemIndex = current;
+    if ( current != (size_t)-1 )
+        GetLine(current)->GetItem( 0, le.m_item );
     le.m_code = event.GetKeyCode();
     le.SetEventObject( parent );
     if (parent->GetEventHandler()->ProcessEvent( le ))
@@ -2981,7 +3137,7 @@ void wxListMainWindow::OnChar( wxKeyEvent &event )
                 {
                     ReverseHighlight(m_current);
                 }
-                else // normal space press
+                else if ( ShouldSendEventForCurrent() ) // normal space press
                 {
                     SendNotify( m_current, wxEVT_LIST_ITEM_ACTIVATED );
                 }
@@ -2994,6 +3150,12 @@ void wxListMainWindow::OnChar( wxKeyEvent &event )
 
         case WXK_RETURN:
         case WXK_EXECUTE:
+            if ( event.HasModifiers() || !ShouldSendEventForCurrent() )
+            {
+                event.Skip();
+                break;
+            }
+
             SendNotify( m_current, wxEVT_LIST_ITEM_ACTIVATED );
             break;
 
@@ -3097,6 +3259,7 @@ void wxListMainWindow::OnSetFocus( wxFocusEvent &WXUNUSED(event) )
     {
         m_hasFocus = true;
 
+        UpdateCurrent();
         RefreshSelected();
     }
 }
@@ -3299,8 +3462,6 @@ void wxListMainWindow::SetColumnWidth( int col, int width )
 
     wxListHeaderData *column = node->GetData();
 
-    size_t count = GetItemCount();
-
     if ( width == wxLIST_AUTOSIZE_USEHEADER || width == wxLIST_AUTOSIZE )
     {
         wxListCtrlMaxWidthCalculator calculator(this, col);
@@ -3317,7 +3478,8 @@ void wxListMainWindow::SetColumnWidth( int col, int width )
             size_t first_visible, last_visible;
             GetVisibleLinesRange(&first_visible, &last_visible);
 
-            calculator.ComputeBestColumnWidth(count, first_visible, last_visible);
+            calculator.ComputeBestColumnWidth(GetItemCount(),
+                                              first_visible, last_visible);
             pWidthInfo->nMaxWidth = calculator.GetMaxWidth();
             pWidthInfo->bNeedsUpdate = false;
         }
@@ -3326,17 +3488,26 @@ void wxListMainWindow::SetColumnWidth( int col, int width )
             calculator.UpdateWithWidth(pWidthInfo->nMaxWidth);
         }
 
-        // expand the last column to fit the client size
-        // only for AUTOSIZE_USEHEADER to mimic MSW behaviour
-        int margin = 0;
-        if ( (width == wxLIST_AUTOSIZE_USEHEADER) && (col == GetColumnCount() - 1) )
+        width = calculator.GetMaxWidth() + AUTOSIZE_COL_MARGIN;
+
+        if ( col == 0 && HasCheckBoxes() )
         {
-            margin = GetClientSize().GetX();
-            for ( int i = 0; i < col && margin > 0; ++i )
-                margin -= m_columns.Item(i)->GetData()->GetWidth();
+            // also account for the space needed by the checkbox
+            width += wxRendererNative::Get().GetCheckBoxSize(this).x
+                        + 2*MARGIN_AROUND_CHECKBOX;
         }
 
-        width = wxMax(margin, calculator.GetMaxWidth() + AUTOSIZE_COL_MARGIN);
+        // expand the last column to fit the client size
+        // only for AUTOSIZE_USEHEADER to mimic MSW behaviour
+        if ( (width == wxLIST_AUTOSIZE_USEHEADER) && (col == GetColumnCount() - 1) )
+        {
+            int margin = GetClientSize().GetX();
+            for ( int i = 0; i < col && margin > 0; ++i )
+                margin -= m_columns.Item(i)->GetData()->GetWidth();
+
+            if ( margin > width )
+                width = margin;
+        }
     }
 
     column->SetWidth( width );
@@ -3632,17 +3803,7 @@ int wxListMainWindow::GetSelectedItemCount() const
     if ( IsVirtual() )
         return m_selStore.GetSelectedCount();
 
-    // TODO: we probably should maintain the number of items selected even for
-    //       non virtual controls as enumerating all lines is really slow...
-    size_t countSel = 0;
-    size_t count = GetItemCount();
-    for ( size_t line = 0; line < count; line++ )
-    {
-        if ( GetLine(line)->IsHighlighted() )
-            countSel++;
-    }
-
-    return countSel;
+    return m_selCount;
 }
 
 // ----------------------------------------------------------------------------
@@ -4047,9 +4208,6 @@ void wxListMainWindow::RecalculatePositions(bool noRefresh)
 
     if ( !noRefresh )
     {
-        // FIXME: why should we call it from here?
-        UpdateCurrent();
-
         RefreshAll();
     }
 }
@@ -4070,7 +4228,13 @@ void wxListMainWindow::RefreshAll()
 void wxListMainWindow::UpdateCurrent()
 {
     if ( !HasCurrent() && !IsEmpty() )
-        ChangeCurrent(0);
+    {
+        // Initialise m_current to the first item without sending any
+        // wxEVT_LIST_ITEM_FOCUSED event (typicaly when the control gains focus)
+        // and this is to allow changing the focused item using the arrow keys.
+        // which is the behaviour found in the wxMSW port.
+        ChangeCurrentWithoutEvent(0);
+    }
 }
 
 long wxListMainWindow::GetNextItem( long item,
@@ -4258,6 +4422,10 @@ void wxListMainWindow::DoDeleteAllItems()
     {
         m_countVirt = 0;
         m_selStore.Clear();
+    }
+    else
+    {
+        m_selCount = 0;
     }
 
     if ( InReportView() )
@@ -4817,6 +4985,16 @@ bool wxGenericListCtrl::Create(wxWindow *parent,
     SetInitialSize(size);
 
     return true;
+}
+
+void wxGenericListCtrl::ExtendRulesAndAlternateColour(bool state)
+{
+    wxCHECK_RET( m_mainWin, "can't be called before creation" );
+
+    wxASSERT_MSG( InReportView(), "can only be called in report mode" );
+
+    m_mainWin->ExtendRulesAndAlternateColour(state);
+    m_mainWin->Refresh();
 }
 
 wxBorder wxGenericListCtrl::GetDefaultBorder() const
@@ -5482,7 +5660,7 @@ bool wxGenericListCtrl::SetForegroundColour( const wxColour &colour )
 
 bool wxGenericListCtrl::SetFont( const wxFont &font )
 {
-    if ( !wxWindow::SetFont( font ) )
+    if (!BaseType::SetFont(font))
         return false;
 
     if (m_mainWin)

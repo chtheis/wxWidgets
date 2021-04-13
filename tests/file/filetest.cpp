@@ -12,9 +12,6 @@
 
 #include "testprec.h"
 
-#ifdef __BORLANDC__
-    #pragma hdrstop
-#endif
 
 #if wxUSE_FILE
 
@@ -144,26 +141,33 @@ void FileTestCase::TempFile()
 // Check that GetSize() works correctly for special files.
 TEST_CASE("wxFile::Special", "[file][linux][special-file]")
 {
+    // LXC containers don't (always) populate /proc and /sys, so skip these
+    // tests there.
+    if ( IsRunningInLXC() )
+        return;
+
     // We can't test /proc/kcore here, unlike in the similar
     // wxFileName::GetSize() test, as wxFile must be able to open it (at least
     // for reading) and usually we don't have the permissions to do it.
 
     // This file is not seekable and has 0 size, but can still be read.
-    wxFile fileProc("/proc/diskstats");
+    wxFile fileProc("/proc/cpuinfo");
     CHECK( fileProc.IsOpened() );
 
     wxString s;
     CHECK( fileProc.ReadAll(&s) );
     CHECK( !s.empty() );
 
-    // All files in /sys seem to have size of 4KiB currently, even if they
-    // don't have that much data in them.
+    // All files in /sys have the size of one kernel page, even if they don't
+    // have that much data in them.
+    const long pageSize = sysconf(_SC_PAGESIZE);
+
     wxFile fileSys("/sys/power/state");
-    CHECK( fileSys.Length() == 4096 );
+    CHECK( fileSys.Length() == pageSize );
     CHECK( fileSys.IsOpened() );
     CHECK( fileSys.ReadAll(&s) );
     CHECK( !s.empty() );
-    CHECK( s.length() < 4096 );
+    CHECK( s.length() < pageSize );
 }
 
 #endif // __LINUX__

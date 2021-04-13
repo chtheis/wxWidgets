@@ -91,7 +91,7 @@ typedef int wxEventType;
     wxEventTableEntry(type, winid, idLast, wxNewEventTableFunctor(type, fn), obj)
 
 #define wxDECLARE_EVENT_TABLE_TERMINATOR() \
-    wxEventTableEntry(wxEVT_NULL, 0, 0, 0, 0)
+    wxEventTableEntry(wxEVT_NULL, 0, 0, NULL, NULL)
 
 // generate a new unique event type
 extern WXDLLIMPEXP_BASE wxEventType wxNewEventType();
@@ -144,9 +144,58 @@ inline wxEventFunction wxEventFunctionCast(void (wxEvtHandler::*func)(T&))
     wxGCC_WARNING_RESTORE_CAST_FUNCTION_TYPE()
 }
 
+// In good old pre-C++17 times we could just static_cast the event handler,
+// defined in some class deriving from wxEvtHandler, to the "functype" which is
+// a type of wxEvtHandler method. But with C++17 this doesn't work when the
+// handler is a noexcept function, so we need to cast it to a noexcept function
+// pointer first.
+#if __cplusplus >= 201703L
+
+namespace wxPrivate
+{
+
+// Cast to noexcept function type first if necessary.
+template <typename E, typename C>
+constexpr auto DoCast(void (C::*pmf)(E&))
+{
+    return static_cast<void (wxEvtHandler::*)(E&)>(pmf);
+}
+
+template <typename E, typename C>
+constexpr auto DoCast(void (C::*pmf)(E&) noexcept)
+{
+    return static_cast<void (wxEvtHandler::*)(E&)>(
+            static_cast<void (wxEvtHandler::*)(E&) noexcept>(pmf)
+        );
+}
+
+// Helper used to recover the type of the handler argument from the function
+// type. This is required in order to explicitly pass this type to DoCast<> as
+// the compiler would be unable to deduce it for overloaded functions.
+
+// Generic template version, doing nothing.
+template <typename F>
+struct EventArgOf;
+
+// Specialization sufficient to cover all event handler function types.
+template <typename C, typename E>
+struct EventArgOf<void (C::*)(E&)>
+{
+    using type = E;
+};
+
+
+} // namespace wxPrivate
+
+#define wxEventHandlerNoexceptCast(functype, pmf) \
+    wxPrivate::DoCast<wxPrivate::EventArgOf<functype>::type>(pmf)
+#else
+#define wxEventHandlerNoexceptCast(functype, pmf) static_cast<functype>(pmf)
+#endif
+
 // Try to cast the given event handler to the correct handler type:
 #define wxEVENT_HANDLER_CAST( functype, func ) \
-    wxEventFunctionCast(static_cast<functype>(&func))
+    wxEventFunctionCast(wxEventHandlerNoexceptCast(functype, &func))
 
 
 // The tag is a type associated to the event type (which is an integer itself,
@@ -632,6 +681,7 @@ class WXDLLIMPEXP_FWD_CORE wxWindowDestroyEvent;
 class WXDLLIMPEXP_FWD_CORE wxShowEvent;
 class WXDLLIMPEXP_FWD_CORE wxIconizeEvent;
 class WXDLLIMPEXP_FWD_CORE wxMaximizeEvent;
+class WXDLLIMPEXP_FWD_CORE wxFullScreenEvent;
 class WXDLLIMPEXP_FWD_CORE wxMouseCaptureChangedEvent;
 class WXDLLIMPEXP_FWD_CORE wxMouseCaptureLostEvent;
 class WXDLLIMPEXP_FWD_CORE wxPaintEvent;
@@ -783,6 +833,7 @@ wxDECLARE_EXPORTED_EVENT(WXDLLIMPEXP_CORE, wxEVT_DESTROY, wxWindowDestroyEvent);
 wxDECLARE_EXPORTED_EVENT(WXDLLIMPEXP_CORE, wxEVT_SHOW, wxShowEvent);
 wxDECLARE_EXPORTED_EVENT(WXDLLIMPEXP_CORE, wxEVT_ICONIZE, wxIconizeEvent);
 wxDECLARE_EXPORTED_EVENT(WXDLLIMPEXP_CORE, wxEVT_MAXIMIZE, wxMaximizeEvent);
+wxDECLARE_EXPORTED_EVENT(WXDLLIMPEXP_CORE, wxEVT_FULLSCREEN, wxFullScreenEvent);
 wxDECLARE_EXPORTED_EVENT(WXDLLIMPEXP_CORE, wxEVT_MOUSE_CAPTURE_CHANGED, wxMouseCaptureChangedEvent);
 wxDECLARE_EXPORTED_EVENT(WXDLLIMPEXP_CORE, wxEVT_MOUSE_CAPTURE_LOST, wxMouseCaptureLostEvent);
 wxDECLARE_EXPORTED_EVENT(WXDLLIMPEXP_CORE, wxEVT_PAINT, wxPaintEvent);
@@ -2156,7 +2207,7 @@ public:
             *ypos = GetY();
     }
 
-    // This version if provided only for backwards compatiblity, don't use.
+    // This version if provided only for backwards compatibility, don't use.
     void GetPosition(long *xpos, long *ypos) const
     {
         if (xpos)
@@ -2335,39 +2386,17 @@ private:
  wxEVT_NC_PAINT
  */
 
-#if wxDEBUG_LEVEL && defined(__WXMSW__)
-    #define wxHAS_PAINT_DEBUG
-
-    // see comments in src/msw/dcclient.cpp where g_isPainting is defined
-    extern WXDLLIMPEXP_CORE int g_isPainting;
-#endif // debug
-
 class WXDLLIMPEXP_CORE wxPaintEvent : public wxEvent
 {
+    // This ctor is only intended to be used by wxWidgets itself, so it's
+    // intentionally declared as private when not building the library itself.
+#ifdef WXBUILDING
 public:
-    wxPaintEvent(int Id = 0)
-        : wxEvent(Id, wxEVT_PAINT)
-    {
-#ifdef wxHAS_PAINT_DEBUG
-        // set the internal flag for the duration of redrawing
-        g_isPainting++;
-#endif // debug
-    }
+#endif // WXBUILDING
+    explicit wxPaintEvent(wxWindowBase* window = NULL);
 
-    // default copy ctor and dtor are normally fine, we only need them to keep
-    // g_isPainting updated in debug build
-#ifdef wxHAS_PAINT_DEBUG
-    wxPaintEvent(const wxPaintEvent& event)
-            : wxEvent(event)
-    {
-        g_isPainting++;
-    }
-
-    virtual ~wxPaintEvent()
-    {
-        g_isPainting--;
-    }
-#endif // debug
+public:
+    // default copy ctor and dtor are fine
 
     virtual wxEvent *Clone() const wxOVERRIDE { return new wxPaintEvent(*this); }
 
@@ -2377,11 +2406,14 @@ private:
 
 class WXDLLIMPEXP_CORE wxNcPaintEvent : public wxEvent
 {
+    // This ctor is only intended to be used by wxWidgets itself, so it's
+    // intentionally declared as private when not building the library itself.
+#ifdef WXBUILDING
 public:
-    wxNcPaintEvent(int winid = 0)
-        : wxEvent(winid, wxEVT_NC_PAINT)
-        { }
+#endif // WXBUILDING
+    explicit wxNcPaintEvent(wxWindowBase* window = NULL);
 
+public:
     virtual wxEvent *Clone() const wxOVERRIDE { return new wxNcPaintEvent(*this); }
 
 private:
@@ -2695,6 +2727,30 @@ private:
     wxDECLARE_DYNAMIC_CLASS_NO_ASSIGN(wxMaximizeEvent);
 };
 
+/*
+ wxEVT_FULLSCREEN
+ */
+class WXDLLIMPEXP_CORE wxFullScreenEvent : public wxEvent
+{
+public:
+    wxFullScreenEvent(int winid = 0, bool fullscreen = true)
+        : wxEvent(winid, wxEVT_FULLSCREEN)
+        { m_fullscreen = fullscreen; }
+    wxFullScreenEvent(const wxFullScreenEvent& event)
+        : wxEvent(event)
+        { m_fullscreen = event.m_fullscreen; }
+
+    bool IsFullScreen() const { return m_fullscreen; }
+
+    virtual wxEvent *Clone() const wxOVERRIDE { return new wxFullScreenEvent(*this); }
+
+protected:
+    bool m_fullscreen;
+
+private:
+    wxDECLARE_DYNAMIC_CLASS_NO_ASSIGN(wxFullScreenEvent);
+};
+
 // Joystick event class
 /*
  wxEVT_JOY_BUTTON_DOWN,
@@ -2877,6 +2933,7 @@ public:
         m_setShown =
         m_setText =
         m_setChecked = false;
+        m_isCheckable = true;
     }
     wxUpdateUIEvent(const wxUpdateUIEvent& event)
         : wxCommandEvent(event),
@@ -2887,6 +2944,7 @@ public:
           m_setShown(event.m_setShown),
           m_setText(event.m_setText),
           m_setChecked(event.m_setChecked),
+          m_isCheckable(event.m_isCheckable),
           m_text(event.m_text)
     { }
 
@@ -2903,6 +2961,10 @@ public:
     void Enable(bool enable) { m_enabled = enable; m_setEnabled = true; }
     void Show(bool show) { m_shown = show; m_setShown = true; }
     void SetText(const wxString& text) { m_text = text; m_setText = true; }
+
+    // A flag saying if the item can be checked. True by default.
+    bool IsCheckable() const { return m_isCheckable; }
+    void DisallowCheck() { m_isCheckable = false; }
 
     // Sets the interval between updates in milliseconds.
     // Set to -1 to disable updates, or to 0 to update as frequently as possible.
@@ -2936,6 +2998,7 @@ protected:
     bool          m_setShown;
     bool          m_setText;
     bool          m_setChecked;
+    bool          m_isCheckable;
     wxString      m_text;
 #if wxUSE_LONGLONG
     static wxLongLong       sm_lastUpdate;
@@ -4258,16 +4321,12 @@ typedef void (wxEvtHandler::*wxPressAndTapEventFunction)(wxPressAndTapEvent&);
     private:                                                            \
         static const wxEventTableEntry sm_eventTableEntries[];          \
     protected:                                                          \
-        wxCLANG_WARNING_SUPPRESS(inconsistent-missing-override)         \
+        wxWARNING_SUPPRESS_MISSING_OVERRIDE()                           \
         const wxEventTable* GetEventTable() const;                      \
         wxEventHashTable& GetEventHashTable() const;                    \
-        wxCLANG_WARNING_RESTORE(inconsistent-missing-override)          \
+        wxWARNING_RESTORE_MISSING_OVERRIDE()                            \
         static const wxEventTable        sm_eventTable;                 \
         static wxEventHashTable          sm_eventHashTable
-
-// N.B.: when building DLL with Borland C++ 5.5 compiler, you must initialize
-//       sm_eventTable before using it in GetEventTable() or the compiler gives
-//       E2233 (see http://groups.google.com/groups?selm=397dcc8a%241_2%40dnews)
 
 #define wxBEGIN_EVENT_TABLE(theClass, baseClass) \
     const wxEventTable theClass::sm_eventTable = \

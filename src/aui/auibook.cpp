@@ -14,9 +14,6 @@
 
 #include "wx/wxprec.h"
 
-#ifdef __BORLANDC__
-    #pragma hdrstop
-#endif
 
 #if wxUSE_AUI
 
@@ -2081,6 +2078,8 @@ bool wxAuiNotebook::RemovePage(size_t page_idx)
     // make sure we found the page
     if (!wnd)
         return false;
+
+    ShowWnd(wnd, false);
 
     // find out which onscreen tab ctrl owns this tab
     wxAuiTabCtrl* ctrl;

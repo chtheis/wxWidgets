@@ -115,7 +115,7 @@ These come in two varieties:
     ("\<label\>Cancel\</label\>"), but they may use nested subelements too (e.g.
     @ref overview_xrcformat_type_font "font property"). A property can only be
     listed once in an object's definition.
- -# Child objects. Window childs, sizers, sizer items or notebook pages
+ -# Child objects. Window children, sizers, sizer items or notebook pages
     are all examples of child objects. They are represented using nested
     @c \<object\> elements and are can be repeated more than once. The specifics
     of which object classes are allowed as children are class-specific and
@@ -769,6 +769,11 @@ Refer to the section @ref xrc_wxtoolbar for more details.
 @hdr3col{property, type, description}
 @row3col{default, @ref overview_xrcformat_type_bool,
      Should this button be the default button in dialog (default: 0)?}
+@row3col{close, @ref overview_xrcformat_type_bool,
+     If set, this is a special "Close" button using system-defined appearance,
+     see wxBitmapButton::NewCloseButton(). If this property is set, @c bitmap
+     and @c style are ignored and shouldn't be used. Available since wxWidgets
+     3.1.5.}
 @row3col{bitmap, @ref overview_xrcformat_type_bitmap,
      Bitmap to show on the button (default: none).}
 @row3col{selected, @ref overview_xrcformat_type_bitmap,
@@ -957,6 +962,9 @@ The wxCommandLinkButton contains a main title-like @c label and an optional
 concatenated into a single string using a new line character between them
 (notice that the @c note part can have more new lines in it).
 
+Since wxWidgets 3.1.5 it also supports @c default and @c bitmap properties,
+just as @ref xrc_wxbutton wxButton.
+
 @beginTable
 @hdr3col{property, type, description}
 @row3col{label, @ref overview_xrcformat_type_text,
@@ -964,6 +972,10 @@ concatenated into a single string using a new line character between them
     will be made when the button is pressed (default: empty). }
 @row3col{note, @ref overview_xrcformat_type_text,
     Second line of text describing the action performed when the button is pressed (default: none).  }
+@row3col{bitmap, @ref overview_xrcformat_type_bitmap,
+    Bitmap to display in the button (optional).}
+@row3col{default, @ref overview_xrcformat_type_bool,
+    Should this button be the default button in dialog (default: 0)?}
 @endTable
 
 
@@ -1184,6 +1196,14 @@ objects. If sizer child is used, it sets
 @row3col{bezel, @ref overview_xrcformat_type_dimension,
     Ignored, preserved only for compatibility.}
 @endTable
+
+@subsubsection xrc_wxgenericanimationctrl wxGenericAnimationCtrl
+
+This handler is identical to the one for @ref xrc_wxanimationctrl
+"wxAnimationCtrl", please see it for more information. The only difference is
+that, for the platforms with a native wxAnimationCtrl implementation, using
+this handler creates a generic control rather than a native one.
+
 
 @subsubsection xrc_wxgenericdirctrl wxGenericDirCtrl
 
@@ -1811,7 +1831,7 @@ objects have the following properties:
 @endTable
 
 A wxRibbonPage may have children of any type derived from wxRibbonControl.
-Most commontly, wxRibbonPanel is used. As a special case, the @c panel
+Most commonly, wxRibbonPanel is used. As a special case, the @c panel
 pseudo-class may be used instead of @c wxRibbonPanel when used as wxRibbonPage
 children.
 
@@ -2654,16 +2674,17 @@ should be processed on. It is filtered out and ignored on any other platforms.
 
 Possible elemental values are:
 @beginDefList
-@itemdef{ @c win, Windows }
-@itemdef{ @c mac, OS X (or Mac Classic in wxWidgets version supporting it) }
-@itemdef{ @c unix, Any Unix platform @em except OS X }
+@itemdef{ @c msw, Windows, preferred platform name }
+@itemdef{ @c win, Windows, alternative synonym }
+@itemdef{ @c mac, macOS or iOS }
+@itemdef{ @c unix, Any Unix platform @em except macOS }
 @endDefList
 
 Examples:
 @code
-<label platform="win">Windows</label>
+<label platform="msw">Windows</label>
 <label platform="unix">Unix</label>
-<label platform="mac">OS X</label>
+<label platform="mac">macOS</label>
 <help platform="mac|unix">Not a Windows machine</help>
 @endcode
 

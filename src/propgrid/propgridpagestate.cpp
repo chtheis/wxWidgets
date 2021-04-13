@@ -11,9 +11,6 @@
 // For compilers that support precompilation, includes "wx/wx.h".
 #include "wx/wxprec.h"
 
-#ifdef __BORLANDC__
-    #pragma hdrstop
-#endif
 
 #if wxUSE_PROPGRID
 
@@ -432,7 +429,7 @@ wxPropertyCategory* wxPropertyGridPageState::GetPropertyCategory( const wxPGProp
         parent = grandparent;
         grandparent = parent->GetParent();
         if ( parent->IsCategory() && grandparent )
-            return (wxPropertyCategory*)parent;
+            return const_cast<wxPropertyCategory*>(static_cast<const wxPropertyCategory*>(parent));
     } while ( grandparent );
 
     return NULL;
@@ -451,11 +448,11 @@ wxPGProperty* wxPropertyGridPageState::GetPropertyByLabel
 #endif // WXWIN_COMPATIBILITY_3_0
 
 wxPGProperty* wxPropertyGridPageState::BaseGetPropertyByLabel
-                        ( const wxString& label, wxPGProperty* parent ) const
+                        ( const wxString& label, const wxPGProperty* parent ) const
 {
     if ( !parent )
     {
-        parent = (wxPGProperty*) &m_regularArray;
+        parent = &m_regularArray;
     }
 
     for ( size_t i=0; i<parent->GetChildCount(); i++ )

@@ -34,6 +34,10 @@ class WXDLLIMPEXP_FWD_CORE wxWindowBase;
     #define MAX_PATH  260
 #endif
 
+// Many MSW functions have parameters which are "reserved". Passing them this
+// constant is more clear than just using "0" or "NULL".
+#define wxRESERVED_PARAM    0
+
 // ---------------------------------------------------------------------------
 // standard icons from the resources
 // ---------------------------------------------------------------------------
@@ -91,12 +95,13 @@ WXDLLIMPEXP_BASE void wxSetInstance(HINSTANCE hInst);
 // Return the height of a native text control corresponding to the given
 // character height (as returned by GetCharHeight() or wxGetCharSize()).
 //
-// The wxWindow parameter must be valid and used for getting the DPI.
-inline int wxGetEditHeightFromCharHeight(int cy, const wxWindow* w)
+// The wxWindow parameter is currently not used but should still be valid.
+inline int wxGetEditHeightFromCharHeight(int cy, const wxWindow* WXUNUSED(w))
 {
     // The value 8 here is empiric, i.e. it's not necessarily correct, but
     // seems to work relatively well.
-    return cy + w->FromDIP(8);
+    // Don't use FromDIP(8), this seems not needed.
+    return cy + 8;
 }
 
 // Compatibility macro used in the existing code. It assumes that it's called
@@ -120,13 +125,12 @@ extern LONG APIENTRY
 
 // This one is a macro so that it can be tested with #ifdef, it will be
 // undefined if it cannot be implemented for a given compiler.
-// Vc++, bcc, dmc, ow, mingw akk have _get_osfhandle() and Cygwin has
+// Vc++, dmc, ow, mingw akk have _get_osfhandle() and Cygwin has
 // get_osfhandle. Others are currently unknown, e.g. Salford, Intel, Visual
 // Age.
 #if defined(__CYGWIN__)
     #define wxGetOSFHandle(fd) ((HANDLE)get_osfhandle(fd))
 #elif defined(__VISUALC__) \
-   || defined(__BORLANDC__) \
    || defined(__MINGW32__)
     #define wxGetOSFHandle(fd) ((HANDLE)_get_osfhandle(fd))
     #define wxOpenOSFHandle(h, flags) (_open_osfhandle(wxPtrToUInt(h), flags))
@@ -161,7 +165,8 @@ protected:
     // implicitly convertible to HANDLE, which is a pointer.
     static HANDLE InvalidHandle()
     {
-        return reinterpret_cast<HANDLE>(INVALID_VALUE);
+        wxUIntPtr h = INVALID_VALUE;
+        return reinterpret_cast<HANDLE>(h);
     }
 
     void DoClose()
@@ -208,6 +213,12 @@ struct WinStruct : public T
 
 #include "wx/gdicmn.h"
 #include "wx/colour.h"
+
+#ifdef COM_DECLSPEC_NOTHROW
+    #define wxSTDMETHODIMP COM_DECLSPEC_NOTHROW STDMETHODIMP
+#else
+    #define wxSTDMETHODIMP STDMETHODIMP
+#endif
 
 // make conversion from wxColour and COLORREF a bit less painful
 inline COLORREF wxColourToRGB(const wxColour& c)
@@ -448,7 +459,7 @@ private:
 class MemoryHDC
 {
 public:
-    MemoryHDC(HDC hdc = 0) { m_hdc = ::CreateCompatibleDC(hdc); }
+    MemoryHDC(HDC hdc = NULL) { m_hdc = ::CreateCompatibleDC(hdc); }
    ~MemoryHDC() { ::DeleteDC(m_hdc); }
 
     operator HDC() const { return m_hdc; }
@@ -482,7 +493,7 @@ public:
     ~SelectInHDC() { if ( m_hdc ) ::SelectObject(m_hdc, m_hgdiobj); }
 
     // return true if the object was successfully selected
-    operator bool() const { return m_hgdiobj != 0; }
+    operator bool() const { return m_hgdiobj != NULL; }
 
 private:
     HDC m_hdc;
@@ -577,7 +588,7 @@ class MonoBitmap : public AutoHBITMAP
 {
 public:
     MonoBitmap(int w, int h)
-        : AutoHBITMAP(::CreateBitmap(w, h, 1, 1, 0))
+        : AutoHBITMAP(::CreateBitmap(w, h, 1, 1, NULL))
     {
     }
 };
@@ -764,6 +775,15 @@ public:
 
     void *Get() const { return m_ptr; }
     operator void *() const { return m_ptr; }
+
+    size_t GetSize() const
+    {
+        const size_t size = ::GlobalSize(m_hGlobal);
+        if ( !size )
+            wxLogLastError(wxT("GlobalSize"));
+
+        return size;
+    }
 
 private:
     HGLOBAL m_hGlobal;
@@ -955,6 +975,10 @@ enum wxWinVersion
 };
 
 WXDLLIMPEXP_BASE wxWinVersion wxGetWinVersion();
+
+// This is similar to wxSysErrorMsgStr(), but takes an extra HMODULE parameter
+// specific to wxMSW.
+WXDLLIMPEXP_BASE wxString wxMSWFormatMessage(DWORD nErrCode, HMODULE hModule = 0);
 
 #if wxUSE_GUI && defined(__WXMSW__)
 

@@ -118,9 +118,6 @@
 
 #include "wx/wxprec.h"
 
-#ifdef __BORLANDC__
-    #pragma hdrstop
-#endif
 
 #if wxUSE_TEXTCTRL
 
@@ -1684,7 +1681,7 @@ int wxTextCtrl::GetLineLength(wxTextCoord line) const
     }
     else // multiline
     {
-        if ( line < 0 || line >= GetLineCount() )
+        if ( line < 0 || (size_t)line >= GetLineCount() )
             return -1;
 
         return GetLines()[line].length();

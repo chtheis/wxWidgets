@@ -19,9 +19,6 @@
 // For compilers that support precompilation, includes "wx.h".
 #include "wx/wxprec.h"
 
-#ifdef __BORLANDC__
-    #pragma hdrstop
-#endif
 
 #if wxUSE_TOOLBAR && wxUSE_TOOLBAR_NATIVE
 
@@ -452,6 +449,20 @@ bool wxToolBar::MSWCreateToolbar(const wxPoint& pos, const wxSize& size)
         MSWSetPadding(m_toolPacking);
     }
 
+#if wxUSE_TOOLTIPS
+    // MSW "helpfully" handles ampersands as mnemonics in the tooltips
+    // (officially in order to allow using the same string as the menu item and
+    // a toolbar item tip), but we don't want this, so force TTS_NOPREFIX to be
+    // on to preserve all ampersands.
+    HWND hwndTTip = (HWND)::SendMessage(GetHwnd(), TB_GETTOOLTIPS, 0, 0);
+    if ( hwndTTip )
+    {
+        long styleTTip = ::GetWindowLong(hwndTTip, GWL_STYLE);
+        styleTTip |= TTS_NOPREFIX;
+        ::SetWindowLong(hwndTTip, GWL_STYLE, styleTTip);
+    }
+#endif // wxUSE_TOOLTIPS
+
     return true;
 }
 
@@ -597,28 +608,15 @@ wxSize wxToolBar::DoGetBestSize() const
 
     wxToolBarToolsList::compatibility_iterator node;
     int toolIndex = 0;
-    for ( node = m_tools.GetFirst(); node; node = node->GetNext() )
+    for ( node = m_tools.GetFirst(); node; node = node->GetNext(),
+                                           toolIndex++ )
     {
         wxToolBarTool * const
             tool = static_cast<wxToolBarTool *>(node->GetData());
 
-        // Note that we can't just reuse sizeTool here, even though all normal
-        // items do have this size, this is not true for the separators and it
-        // is both more robust and simpler to just always use TB_GETITEMRECT
-        // rather than handling the separators specially.
-        const RECT rcItem = wxGetTBItemRect(GetHwnd(), toolIndex++);
-
-        if ( IsVertical() )
+        if ( tool->IsControl() )
         {
-            if ( !tool->IsControl() )
-            {
-                sizeBest.y += rcItem.bottom - rcItem.top;
-            }
-            //else: Controls are not shown in vertical toolbars at all.
-        }
-        else
-        {
-            if ( tool->IsControl() )
+            if ( !IsVertical() )
             {
                 const wxSize sizeControl = MSWGetFittingtSizeForControl(tool);
 
@@ -626,6 +624,20 @@ wxSize wxToolBar::DoGetBestSize() const
                 sizeBest.IncTo(wxSize(-1, sizeControl.y));
 
                 sizeBest.x += sizeControl.x;
+            }
+            //else: Controls are not shown in vertical toolbars at all.
+        }
+        else
+        {
+            // Note that we can't just reuse sizeTool here, even though all normal
+            // items do have this size, this is not true for the separators and it
+            // is both more robust and simpler to just always use TB_GETITEMRECT
+            // rather than handling the separators specially.
+            const RECT rcItem = wxGetTBItemRect(GetHwnd(), toolIndex);
+
+            if ( IsVertical() )
+            {
+                sizeBest.y += rcItem.bottom - rcItem.top;
             }
             else
             {
@@ -1438,21 +1450,51 @@ void wxToolBar::UpdateStretchableSpacersSize()
         const int newSize = --numSpaces ? sizeSpacer : sizeLastSpacer;
         if ( newSize != oldSize)
         {
-            WinStruct<TBBUTTONINFO> tbbi;
-            tbbi.dwMask = TBIF_BYINDEX | TBIF_SIZE;
-            tbbi.cx = newSize;
-            if ( !::SendMessage(GetHwnd(), TB_SETBUTTONINFO,
-                                toolIndex, (LPARAM)&tbbi) )
+            // For horizontal toolbars we can just update the separator in
+            // place, but for some unknown reason this just doesn't do anything
+            // in the vertical case, so we have to delete the separator and it
+            // back with the correct size then. This has its own problems and
+            // may mess up toolbars idea of its best size, so do this only when
+            // necessary.
+            if ( !IsVertical() )
             {
-                wxLogLastError(wxT("TB_SETBUTTONINFO (separator)"));
+                // Just update in place.
+                WinStruct<TBBUTTONINFO> tbbi;
+                tbbi.dwMask = TBIF_BYINDEX | TBIF_SIZE;
+                tbbi.cx = newSize;
+                if ( !::SendMessage(GetHwnd(), TB_SETBUTTONINFO,
+                                    toolIndex, (LPARAM)&tbbi) )
+                {
+                    wxLogLastError(wxT("TB_SETBUTTONINFO (separator)"));
+                }
             }
-            else
+            else // Vertical case, use the workaround.
             {
-                // We successfully updated the separator width, move all the
-                // controls appearing after it by the corresponding amount
-                // (which may be positive or negative)
-                offset += newSize - oldSize;
+                if ( !::SendMessage(GetHwnd(), TB_DELETEBUTTON, toolIndex, 0) )
+                {
+                    wxLogLastError(wxT("TB_DELETEBUTTON (separator)"));
+                }
+                else
+                {
+                    TBBUTTON button;
+                    wxZeroMemory(button);
+
+                    button.idCommand = tool->GetId();
+                    button.iBitmap = newSize; // set separator height
+                    button.fsState = TBSTATE_ENABLED | TBSTATE_WRAP;
+                    button.fsStyle = TBSTYLE_SEP;
+                    if ( !::SendMessage(GetHwnd(), TB_INSERTBUTTON,
+                                        toolIndex, (LPARAM)&button) )
+                    {
+                        wxLogLastError(wxT("TB_INSERTBUTTON (separator)"));
+                    }
+                }
             }
+
+            // After updating the separator width, move all the
+            // controls appearing after it by the corresponding amount
+            // (which may be positive or negative)
+            offset += newSize - oldSize;
         }
 
         toolIndex++;
