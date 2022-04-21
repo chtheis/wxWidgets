@@ -21,6 +21,8 @@
 
 #include "wx/anidecod.h" // wxImageArray
 #include "wx/bitmap.h"
+#include "wx/cursor.h"
+#include "wx/icon.h"
 #include "wx/palette.h"
 #include "wx/url.h"
 #include "wx/log.h"
@@ -1351,6 +1353,11 @@ void ImageTestCase::BMPFlippingAndRLECompression()
     CompareBMPImage("image/horse_rle8.bmp", "image/horse_rle8_flipped.bmp");
 
     CompareBMPImage("image/horse_rle4.bmp", "image/horse_rle4_flipped.bmp");
+
+    CompareBMPImage("image/rle8-delta-320x240.bmp",
+                    "image/rle8-delta-320x240-expected.bmp");
+    CompareBMPImage("image/rle4-delta-320x240.bmp",
+                    "image/rle8-delta-320x240-expected.bmp");
 }
 
 
@@ -1518,7 +1525,53 @@ void ImageTestCase::CreateBitmapFromCursor()
 #endif
 }
 
-#endif //wxUSE_IMAGE
+// This function assumes that the file is malformed in a way that it cannot
+// be loaded but that doesn't fail a wxCHECK.
+static void LoadMalformedImage(const wxString& file, wxBitmapType type)
+{
+    // If the file doesn't exist, it's a test bug.
+    // (The product code would fail but for the wrong reason.)
+    INFO("Checking that image exists: " << file);
+    REQUIRE(wxFileExists(file));
+
+    // Load the image, expecting a failure.
+    wxImage image;
+    INFO("Loading malformed image: " << file);
+    REQUIRE(!image.LoadFile(file, type));
+}
+
+// This function assumes that the file is malformed in a way that wxImage
+// fails a wxCHECK when trying to load it.
+static void LoadMalformedImageWithException(const wxString& file,
+                                            wxBitmapType type)
+{
+    // If the file doesn't exist, it's a test bug.
+    // (The product code would fail but for the wrong reason.)
+    INFO("Checking that image exists: " << file);
+    REQUIRE(wxFileExists(file));
+
+    wxImage image;
+    INFO("Loading malformed image: " << file);
+#ifdef __WXDEBUG__
+    REQUIRE_THROWS(image.LoadFile(file, type));
+#else
+    REQUIRE(!image.LoadFile(file, type));
+#endif
+}
+
+TEST_CASE("wxImage::BMP", "[image][bmp]")
+{
+    SECTION("Load malformed bitmaps")
+    {
+        LoadMalformedImage("image/8bpp-colorsused-negative.bmp",
+                           wxBITMAP_TYPE_BMP);
+        LoadMalformedImage("image/8bpp-colorsused-large.bmp",
+                           wxBITMAP_TYPE_BMP);
+
+        LoadMalformedImageWithException("image/width-times-height-overflow.bmp",
+                                        wxBITMAP_TYPE_BMP);
+    }
+}
 
 TEST_CASE("wxImage::Paste", "[image][paste]")
 {
@@ -2118,7 +2171,11 @@ TEST_CASE("wxImage::InitAlpha", "[image][initalpha]")
         REQUIRE_FALSE(img.HasMask());
 
         wxImage imgRes = img;
+#ifdef __WXDEBUG__
         CHECK_THROWS(imgRes.InitAlpha());
+#else
+        imgRes.InitAlpha();
+#endif
         REQUIRE(imgRes.HasAlpha() == true);
         REQUIRE_FALSE(imgRes.HasMask());
 
@@ -2149,7 +2206,11 @@ TEST_CASE("wxImage::InitAlpha", "[image][initalpha]")
         REQUIRE(img.HasMask() == true);
 
         wxImage imgRes = img;
+#ifdef __WXDEBUG__
         CHECK_THROWS(imgRes.InitAlpha());
+#else
+        imgRes.InitAlpha();
+#endif
         REQUIRE(imgRes.HasAlpha() == true);
         REQUIRE(imgRes.HasMask() == true);
 
@@ -2164,6 +2225,117 @@ TEST_CASE("wxImage::InitAlpha", "[image][initalpha]")
     }
 }
 
+TEST_CASE("wxImage::XPM", "[image][xpm]")
+{
+   static const char * dummy_xpm[] = {
+      "16 16 2 1",
+      "@ c Black",
+      "  c None",
+      "@               ",
+      " @              ",
+      "  @             ",
+      "   @            ",
+      "    @           ",
+      "     @          ",
+      "      @         ",
+      "       @        ",
+      "        @       ",
+      "         @      ",
+      "          @     ",
+      "           @    ",
+      "            @   ",
+      "             @  ",
+      "              @ ",
+      "               @"
+   };
+
+   wxImage image(dummy_xpm);
+   CHECK( image.IsOk() );
+
+   // The goal here is mostly just to check that this code compiles, i.e. that
+   // creating all these classes from XPM works.
+   CHECK( wxBitmap(dummy_xpm).IsOk() );
+   CHECK( wxCursor(dummy_xpm).IsOk() );
+   CHECK( wxIcon(dummy_xpm).IsOk() );
+}
+
+TEST_CASE("wxImage::PNM", "[image][pnm]")
+{
+#if wxUSE_PNM
+    wxImage::AddHandler(new wxPNMHandler);
+
+    SECTION("width*height*3 overflow")
+    {
+        // wxImage should reject the file as malformed (wxTrac#19326)
+        LoadMalformedImageWithException("image/width_height_32_bit_overflow.pgm",
+                                        wxBITMAP_TYPE_PNM);
+    }
+#endif
+}
+
+TEST_CASE("wxImage::ChangeColours", "[image]")
+{
+    wxImage original;
+    REQUIRE(original.LoadFile("image/toucan.png", wxBITMAP_TYPE_PNG));
+
+    wxImage test;
+    wxImage expected;
+
+    test = original;
+    test.RotateHue(0.538);
+    REQUIRE(expected.LoadFile("image/toucan_hue_0.538.png", wxBITMAP_TYPE_PNG));
+    CHECK_THAT(test, RGBSameAs(expected));
+
+    test = original;
+    test.ChangeSaturation(-0.41);
+    REQUIRE(expected.LoadFile("image/toucan_sat_-0.41.png", wxBITMAP_TYPE_PNG));
+    CHECK_THAT(test, RGBSameAs(expected));
+
+    test = original;
+    test.ChangeBrightness(-0.259);
+    REQUIRE(expected.LoadFile("image/toucan_bright_-0.259.png", wxBITMAP_TYPE_PNG));
+    CHECK_THAT(test, RGBSameAs(expected));
+
+    test = original;
+    test.ChangeHSV(0.538, -0.41, -0.259);
+    REQUIRE(expected.LoadFile("image/toucan_hsv_0.538_-0.41_-0.259.png", wxBITMAP_TYPE_PNG));
+    CHECK_THAT(test, RGBSameAs(expected));
+
+    test = original;
+    test = test.ChangeLightness(46);
+    REQUIRE(expected.LoadFile("image/toucan_light_46.png", wxBITMAP_TYPE_PNG));
+    CHECK_THAT(test, RGBSameAs(expected));
+
+    test = original;
+    test = test.ConvertToDisabled(240);
+    REQUIRE(expected.LoadFile("image/toucan_dis_240.png", wxBITMAP_TYPE_PNG));
+    CHECK_THAT(test, RGBSameAs(expected));
+
+    test = original;
+    test = test.ConvertToGreyscale();
+    REQUIRE(expected.LoadFile("image/toucan_grey.png", wxBITMAP_TYPE_PNG));
+    CHECK_THAT(test, RGBSameAs(expected));
+
+    test = original;
+    test = test.ConvertToMono(255, 255, 255);
+    REQUIRE(expected.LoadFile("image/toucan_mono_255_255_255.png", wxBITMAP_TYPE_PNG));
+    CHECK_THAT(test, RGBSameAs(expected));
+}
+
+TEST_CASE("wxImage::SizeLimits", "[image]")
+{
+#if SIZEOF_VOID_P == 8
+    // Check that we can resample an image of size greater than 2^16, which is
+    // the limit used in 32-bit code to avoid integer overflows.
+    wxImage image(100000, 2);
+    REQUIRE_NOTHROW( image = image.ResampleNearest(100000, 1) );
+    CHECK( image.GetWidth() == 100000 );
+    CHECK( image.GetHeight() == 1 );
+#endif // SIZEOF_VOID_P == 8
+}
+
 /*
     TODO: add lots of more tests to wxImage functions
 */
+
+#endif //wxUSE_IMAGE

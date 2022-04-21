@@ -1,8 +1,8 @@
 #!/bin/sh
 #
-# This script is used by Travis CI to install the dependencies before building
-# wxWidgets but can also be run by hand if necessary but currently it only
-# works for Ubuntu versions used by Travis builds.
+# This script is used by GitHub to install the dependencies
+# before building wxWidgets but can also be run by hand if necessary (but
+# currently it only works for Ubuntu versions used by the CI builds).
 
 set -e
 
@@ -14,16 +14,17 @@ case $(uname -s) in
             # Show information about the repositories and priorities used.
             echo 'APT sources used:'
             $SUDO grep --no-messages '^[^#]' /etc/apt/sources.list /etc/apt/sources.list.d/* || true
-            echo 'APT preferences:'
-            $SUDO grep --no-messages '^[^#]' /etc/apt/preferences /etc/apt/preferences.d/* || true
             echo '--- End of APT files dump ---'
 
             run_apt() {
-                echo "Running apt-get $@"
+                echo "-> Running apt-get $@"
 
                 # Disable some (but not all) output.
                 $SUDO apt-get -q -o=Dpkg::Use-Pty=0 "$@"
 
+                echo "-> Done with $?"
+
+                return $?
             }
 
             if [ "$wxUSE_ASAN" = 1 ]; then
@@ -36,11 +37,6 @@ case $(uname -s) in
                 # Import the debug symbol archive signing key from the Ubuntu server.
                 # Note that this command works only on Ubuntu 18.04 LTS and newer.
                 run_apt install -y ubuntu-dbgsym-keyring
-
-                # The key in the package above is currently (2021-03-22) out of
-                # date, so get the latest key manually (this is completely
-                # insecure, of course, but we don't care).
-                wget -O - http://ddebs.ubuntu.com/dbgsym-release-key.asc | $SUDO apt-key add -
 
                 # Install the symbols to allow LSAN suppression list to work.
                 dbgsym_pkgs='libfontconfig1-dbgsym libglib2.0-0-dbgsym libgtk-3-0-dbgsym libatk-bridge2.0-0-dbgsym'
@@ -57,7 +53,7 @@ case $(uname -s) in
                 *)
                     case "$wxGTK_VERSION" in
                         3)  libtoolkit_dev=libgtk-3-dev
-                            extra_deps='libwebkit2gtk-4.0-dev libwebkitgtk-3.0-dev'
+                            extra_deps='libwebkit2gtk-4.0-dev libgspell-1-dev'
                             ;;
                         2)  libtoolkit_dev=libgtk2.0-dev
                             extra_deps='libwebkitgtk-dev'
@@ -68,9 +64,7 @@ case $(uname -s) in
                     esac
 
                     extra_deps="$extra_deps \
-                            libgstreamermm-1.0-dev libgstreamermm-0.10-dev \
                             libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
-                            libgstreamer0.10-dev libgstreamer-plugins-base0.10-dev \
                             libglu1-mesa-dev"
             esac
 
