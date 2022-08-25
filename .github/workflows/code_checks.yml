@@ -4,10 +4,13 @@ name: Code Checks
 on:
   push:
     branches:
-      - master
+      - 3.2
   pull_request:
     branches:
-      - master
+      - 3.2
+
+permissions:
+  contents: read
 
 jobs:
   check-unix:
@@ -47,6 +50,7 @@ jobs:
                 ':!configure' \
                 ':!descrip.mms' \
                 ':!install-sh' \
+                ':!docs/doxygen/doxygen-awesome-css/*' \
                 ':!**/*akefile*' \
                 ':!**/*.pbxproj' \
                 ':!**/Info*.plist*' \

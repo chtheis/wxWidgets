@@ -248,10 +248,6 @@ public:
     virtual wxSize OnMeasureImage( int item ) const;
     virtual void OnCustomPaint( wxDC& dc,
                                 const wxRect& rect, wxPGPaintData& paintdata );
-
-protected:
-    wxBitmap*   m_pBitmap; // final thumbnail area
-    wxImage*    m_pImage; // intermediate thumbnail area
 };
 
 

@@ -56,6 +56,11 @@ inline void CheckLanguageVariant(wxLocaleIdent& locId)
     }
 }
 
+inline bool IsDefaultCLocale(const wxString& locale)
+{
+    return locale.IsSameAs("C", false) || locale.IsSameAs("POSIX", false);
+}
+
 } // anonymous namespace
 
 
@@ -258,7 +263,7 @@ wxLocaleIdent wxLocaleIdent::FromTag(const wxString& tag)
 
 wxLocaleIdent& wxLocaleIdent::Language(const wxString& language)
 {
-    if (language.IsSameAs("C", false) || language.IsSameAs("POSIX", false))
+    if (IsDefaultCLocale(language))
     {
         m_language = language.Upper();
     }
@@ -470,7 +475,7 @@ bool wxUILocale::UseDefault()
 bool wxUILocale::UseLocaleName(const wxString& localeName)
 {
     wxUILocaleImpl* impl = NULL;
-    if (localeName.IsSameAs("C", false) || localeName.IsSameAs("POSIX", false))
+    if (IsDefaultCLocale(localeName))
     {
         impl = wxUILocaleImpl::CreateStdC();
     }
@@ -652,7 +657,7 @@ int wxUILocale::GetSystemLanguage()
             }
             if (pos != wxString::npos)
             {
-                if (languagesDB[ixLanguage].LocaleTag == lang)
+                if (languagesDB[ixLanguage].LocaleTag == langShort)
                 {
                     ixShort = ixLanguage;
                 }
@@ -664,8 +669,20 @@ int wxUILocale::GetSystemLanguage()
         }
     }
 
-    // no info about this language in the database
-    return wxLANGUAGE_UNKNOWN;
+    // no info about the preferred UI language in the database
+    // fall back to default locale
+    return GetSystemLocale();
+}
+
+/*static*/
+int wxUILocale::GetSystemLocale()
+{
+    // Create default wxUILocale
+    wxUILocale defaultLocale(wxUILocaleImpl::CreateUserDefault());
+
+    // Find corresponding wxLanguageInfo
+    const wxLanguageInfo* defaultLanguage = wxUILocale::FindLanguageInfo(defaultLocale.GetLocaleId());
+    return defaultLanguage ? defaultLanguage->Language : wxLANGUAGE_UNKNOWN;
 }
 
 /* static */
@@ -729,9 +746,9 @@ wxString wxUILocale::GetLanguageCanonicalName(int lang)
 }
 
 /* static */
-const wxLanguageInfo* wxUILocale::FindLanguageInfo(const wxString& locale)
+const wxLanguageInfo* wxUILocale::FindLanguageInfo(const wxString& localeOrig)
 {
-    if (locale.empty())
+    if (localeOrig.empty())
         return NULL;
 
     CreateLanguagesDB();
@@ -740,9 +757,14 @@ const wxLanguageInfo* wxUILocale::FindLanguageInfo(const wxString& locale)
     // to the entry description in the language database.
     // The locale string may have the form "language[_region][.codeset]".
     // We ignore the "codeset" part here.
+    wxString locale = localeOrig;
+    if (IsDefaultCLocale(locale))
+    {
+        locale = "en_US";
+    }
     wxString region;
     wxString languageOnly = locale.BeforeFirst('.').BeforeFirst('_', &region);
-    wxString language= languageOnly;
+    wxString language = languageOnly;
     if (!region.empty())
     {
         // Construct description consisting of language and region
@@ -792,6 +814,10 @@ const wxLanguageInfo* wxUILocale::FindLanguageInfo(const wxLocaleIdent& locId)
 
     const wxLanguageInfo* infoRet = NULL;
     wxString localeTag = locId.GetTag(wxLOCALE_TAGTYPE_BCP47);
+    if (IsDefaultCLocale(locId.GetLanguage()))
+    {
+        localeTag = "en-US";
+    }
 
     const wxLanguageInfos& languagesDB = wxGetLanguageInfos();
     const size_t count = languagesDB.size();

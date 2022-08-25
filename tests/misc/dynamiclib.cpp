@@ -14,84 +14,93 @@
 
 #include "wx/dynlib.h"
 
-#ifdef __UNIX__
+#ifndef __WINDOWS__
+    #include "wx/dir.h"
     #include "wx/filename.h"
-    #include "wx/log.h"
 #endif
 
 // ----------------------------------------------------------------------------
 // test class
 // ----------------------------------------------------------------------------
 
-class DynamicLibraryTestCase : public CppUnit::TestCase
-{
-public:
-    DynamicLibraryTestCase() { }
-
-private:
-    CPPUNIT_TEST_SUITE( DynamicLibraryTestCase );
-        CPPUNIT_TEST( Load );
-    CPPUNIT_TEST_SUITE_END();
-
-    void Load();
-
-    wxDECLARE_NO_COPY_CLASS(DynamicLibraryTestCase);
-};
-
-// register in the unnamed registry so that these tests are run by default
-CPPUNIT_TEST_SUITE_REGISTRATION( DynamicLibraryTestCase );
-
-// also include in its own registry so that these tests can be run alone
-CPPUNIT_TEST_SUITE_NAMED_REGISTRATION( DynamicLibraryTestCase, "DynamicLibraryTestCase" );
-
-void DynamicLibraryTestCase::Load()
+TEST_CASE("DynamicLibrary::Load", "[dynlib]")
 {
 #if defined(__WINDOWS__)
-    static const wxChar *LIB_NAME = wxT("kernel32.dll");
-    static const wxChar *FUNC_NAME = wxT("lstrlenA");
-#elif defined(__UNIX__)
-#ifdef __DARWIN__
-    static const wxChar *LIB_NAME = wxT("/usr/lib/libc.dylib");
+    static const char* const LIB_NAME = "kernel32.dll";
+    static const char* const FUNC_NAME = "lstrlenA";
+#else // !__WINDOWS__
+#if defined(__DARWIN__)
+    static const char* const LIB_NAME = "/usr/lib/libc.dylib";
+#elif defined(__LINUX__)
+    #ifdef __x86_64__
+        static const char* const LIB_NAME = "/lib/x86_64-linux-gnu/libc.so.6";
+    #else
+        static const char* const LIB_NAME = "/lib/libc.so.6";
+    #endif
+#elif defined(__FreeBSD__)
+    static const char* const LIB_NAME = "/lib/libc.so.7";
 #else
-    // weird: using just libc.so does *not* work!
-    static const wxChar *LIB_NAME = wxT("/lib/libc.so.6");
+    static const char* const LIB_NAME = "/unknown/libc/location";
 #endif
-    static const wxChar *FUNC_NAME = wxT("strlen");
+    static const char* const FUNC_NAME = "strlen";
 
+    // Under macOS 12+ we can actually load the libc dylib even though the
+    // corresponding file doesn't exist on disk, so skip this check there.
+#ifndef __DARWIN__
     if ( !wxFileName::Exists(LIB_NAME) )
     {
-        wxLogWarning("Shared library \"%s\" doesn't exist, "
-                     "skipping DynamicLibraryTestCase::Load() test.");
+        WARN("Shared library \"" << LIB_NAME << "\" doesn't exist, "
+             "skipping DynamicLibraryTestCase::Load() test.");
+
+        wxArrayString paths;
+        wxDir::GetAllFiles("/lib", &paths, "libc.*", wxDIR_FILES);
+        wxDir::GetAllFiles("/usr/lib", &paths, "libc.*", wxDIR_FILES);
+        if ( !paths.empty() )
+        {
+            WARN("Possible candidates:\n" << wxJoin(paths, '\n'));
+        }
+
         return;
     }
-#else
-    #error "don't know how to test wxDllLoader on this platform"
-#endif
+#endif // !__DARWIN__
+#endif // __WINDOWS__/!__WINDOWS__
 
     wxDynamicLibrary lib(LIB_NAME);
-    CPPUNIT_ASSERT( lib.IsLoaded() );
+    REQUIRE( lib.IsLoaded() );
 
-    typedef int (wxSTDCALL *wxStrlenType)(const char *);
-    wxStrlenType pfnStrlen = (wxStrlenType)lib.GetSymbol(FUNC_NAME);
+    SECTION("strlen")
+    {
+        typedef int (wxSTDCALL *wxStrlenType)(const char *);
+        wxStrlenType pfnStrlen = (wxStrlenType)lib.GetSymbol(FUNC_NAME);
 
-    wxString errMsg = wxString::Format("ERROR: function '%s' wasn't found in '%s'.\n",
-                                       FUNC_NAME, LIB_NAME);
-    CPPUNIT_ASSERT_MESSAGE( errMsg.ToStdString(), (pfnStrlen != NULL) );
-
-    // Call the function dynamically loaded
-    CPPUNIT_ASSERT( pfnStrlen("foo") == 3 );
+        if ( pfnStrlen )
+        {
+            // Call the function dynamically loaded
+            CHECK( pfnStrlen("foo") == 3 );
+        }
+        else
+        {
+            FAIL(FUNC_NAME << " wasn't found in " << LIB_NAME);
+        }
+    }
 
 #ifdef __WINDOWS__
-    static const wxChar *FUNC_NAME_AW = wxT("lstrlen");
+    SECTION("A/W")
+    {
+        static const char* const FUNC_NAME_AW = "lstrlen";
 
-    typedef int (wxSTDCALL *wxStrlenTypeAorW)(const wxChar *);
-    wxStrlenTypeAorW
-        pfnStrlenAorW = (wxStrlenTypeAorW)lib.GetSymbolAorW(FUNC_NAME_AW);
+        typedef int (wxSTDCALL *wxStrlenTypeAorW)(const wxChar *);
+        wxStrlenTypeAorW
+            pfnStrlenAorW = (wxStrlenTypeAorW)lib.GetSymbolAorW(FUNC_NAME_AW);
 
-    wxString errMsg2 = wxString::Format("ERROR: function '%s' wasn't found in '%s'.\n",
-                                       FUNC_NAME_AW, LIB_NAME);
-    CPPUNIT_ASSERT_MESSAGE( errMsg2.ToStdString(), (pfnStrlenAorW != NULL) );
-
-    CPPUNIT_ASSERT( pfnStrlenAorW(wxT("foobar")) == 6 );
+        if ( pfnStrlenAorW )
+        {
+            CHECK( pfnStrlenAorW(wxT("foobar")) == 6 );
+        }
+        else
+        {
+            FAIL(FUNC_NAME_AW << " wasn't found in " << LIB_NAME);
+        }
+    }
 #endif // __WINDOWS__
 }

@@ -22,7 +22,8 @@
     - wxNO_OP
     - wxCLEAR
     - wxXOR
-    and, in particular, do @em not support the commonly used @c wxINVERT.
+    and only support the commonly used @c wxINVERT when the source colour is
+    white (as it is implemented using wxCOMPOSITION_DIFF composition mode).
 */
 enum wxRasterOperationMode
 {
@@ -1499,10 +1500,24 @@ public:
             - Background brush
             - Layout direction
 
+        Note that the scaling factor is not considered to be an attribute of
+        wxDC and is @e not copied by this function.
+
         @param dc
             A valid (i.e. its IsOk() must return @true) source device context.
      */
     void CopyAttributes(const wxDC& dc);
+
+    /**
+        Returns the factor used for converting logical pixels to physical ones.
+
+        Returns the same value as wxWindow::GetContentScaleFactor() for the
+        device contexts associated with a window and the same value as
+        wxBitmap::GetScaleFactor() for the associated bitmap for wxMemoryDC.
+
+        @since 2.9.5
+     */
+    double GetContentScaleFactor() const;
 
     /**
         Returns the depth (number of bits/pixel) of this DC.
@@ -1549,6 +1564,54 @@ public:
         Returns the resolution of the device in pixels per inch.
     */
     wxSize GetPPI() const;
+
+    /**
+        Convert DPI-independent pixel values to the value in pixels appropriate
+        for the DC.
+
+        See wxWindow::FromDIP(const wxSize& sz) for more info about converting
+        device independent pixel values.
+
+        @since 3.1.7
+     */
+    wxSize FromDIP(const wxSize& sz) const;
+
+    /// @overload
+    wxPoint FromDIP(const wxPoint& pt) const;
+
+    /**
+        Convert DPI-independent value in pixels to the value in pixels
+        appropriate for the DC.
+
+        This is the same as FromDIP(const wxSize& sz) overload, but assumes
+        that the resolution is the same in horizontal and vertical directions.
+
+        @since 3.1.7
+     */
+    int FromDIP(int d) const;
+
+    /**
+        Convert pixel values of the current DC to DPI-independent pixel values.
+
+        See wxWindow::ToDIP(const wxSize& sz) for more info about converting
+        device independent pixel values.
+
+        @since 3.1.7
+     */
+    wxSize ToDIP(const wxSize& sz) const;
+
+    /// @overload
+    wxPoint ToDIP(const wxPoint& pt) const;
+
+    /**
+        Convert pixel values of the current DC to DPI-independent pixel values.
+
+        This is the same as ToDIP(const wxSize& sz) overload, but assumes
+        that the resolution is the same in horizontal and vertical directions.
+
+        @since 3.1.7
+     */
+    int ToDIP(int d) const;
 
     /**
         Gets the horizontal and vertical extent of this device context in @e device units.

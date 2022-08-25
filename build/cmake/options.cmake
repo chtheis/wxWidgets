@@ -16,7 +16,7 @@ wx_option(wxBUILD_TESTS "Build console tests (CONSOLE_ONLY) or ALL" OFF
     STRINGS CONSOLE_ONLY ALL OFF)
 wx_option(wxBUILD_DEMOS "Build demos" OFF)
 wx_option(wxBUILD_BENCHMARKS "Build benchmarks" OFF)
-wx_option(wxBUILD_PRECOMP "Use precompiled headers")
+wx_option(wxBUILD_PRECOMP "Use precompiled headers" ON STRINGS ON OFF COTIRE)
 mark_as_advanced(wxBUILD_PRECOMP)
 wx_option(wxBUILD_INSTALL "Create install/uninstall target for wxWidgets")
 wx_option(wxBUILD_COMPATIBILITY
@@ -114,6 +114,7 @@ wx_add_thirdparty_library(wxUSE_EXPAT EXPAT "use expat for XML parsing" DEFAULT_
 wx_add_thirdparty_library(wxUSE_LIBJPEG JPEG "use libjpeg (JPEG file format)")
 wx_add_thirdparty_library(wxUSE_LIBPNG PNG "use libpng (PNG image format)")
 wx_add_thirdparty_library(wxUSE_LIBTIFF TIFF "use libtiff (TIFF file format)")
+wx_add_thirdparty_library(wxUSE_NANOSVG NanoSVG "use NanoSVG for rasterizing SVG")
 
 wx_option(wxUSE_LIBLZMA "use LZMA compression" OFF)
 set(wxTHIRD_PARTY_LIBRARIES ${wxTHIRD_PARTY_LIBRARIES} wxUSE_LIBLZMA "use liblzma for LZMA compression")

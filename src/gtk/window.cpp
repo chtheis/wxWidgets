@@ -1065,7 +1065,9 @@ wxTranslateGTKKeyEventToWx(wxKeyEvent& event,
 #ifdef HAVE_X11_XKBLIB_H
                 KeySym keysymNormalized = XkbKeycodeToKeysym(dpy, keycode, 0, 0);
 #else
+                wxGCC_WARNING_SUPPRESS(deprecated-declarations)
                 KeySym keysymNormalized = XKeycodeToKeysym(dpy, keycode, 0);
+                wxGCC_WARNING_RESTORE()
 #endif
 
                 // use the normalized, i.e. lower register, keysym if we've
@@ -5689,18 +5691,20 @@ void wxWindowGTK::GTKApplyWidgetStyle(bool forceStyle)
 
         if (isFg || isBg)
         {
-            const bool isGTK3_20 = wx_is_at_least_gtk3(20);
             // Selection may be invisible, so add textview selection colors.
             // This is specifically for wxTextCtrl, but may be useful for other
             // controls, and seems to do no harm to apply to all.
             const wxColour fg_sel(wxSystemSettings::GetColour(wxSYS_COLOUR_HIGHLIGHTTEXT));
             const wxColour bg_sel(wxSystemSettings::GetColour(wxSYS_COLOUR_HIGHLIGHT));
-            g_string_append_printf(css, "%s{color:%s;background:%s}",
-                isGTK3_20 ? "selection" : "*:selected",
-                wxGtkString(gdk_rgba_to_string(fg_sel)).c_str(),
-                wxGtkString(gdk_rgba_to_string(bg_sel)).c_str());
+            wxGtkString fg_sel_string(gdk_rgba_to_string(fg_sel));
+            wxGtkString bg_sel_string(gdk_rgba_to_string(bg_sel));
+            g_string_append_printf(css,
+                "selection{color:%s;background:%s}"
+                "*:selected{color:%s;background:%s}",
+                fg_sel_string.c_str(), bg_sel_string.c_str(),
+                fg_sel_string.c_str(), bg_sel_string.c_str());
 
-            if (isFg && isGTK3_20)
+            if (isFg && wx_is_at_least_gtk3(20))
             {
                 g_string_append_printf(css, "*{caret-color:%s}",
                     wxGtkString(gdk_rgba_to_string(fg)).c_str());
@@ -5918,7 +5922,23 @@ bool wxWindowGTK::DoPopupMenu( wxMenu *menu, int x, int y )
     }
 
     menu->m_popupShown = true;
-    gtk_menu_popup(
+#if GTK_CHECK_VERSION(3,22,0)
+    GdkWindow* window = gtk_widget_get_window(m_wxwindow ? m_wxwindow : m_widget);
+    if (wxGTKImpl::IsWayland(window) && wx_is_at_least_gtk3(22))
+    {
+        if (x == -1 && y == -1)
+            gtk_menu_popup_at_pointer(GTK_MENU(menu->m_menu), NULL);
+        else
+        {
+            const GdkRectangle rect = { x, y, 1, 1 };
+            gtk_menu_popup_at_rect(GTK_MENU(menu->m_menu),
+                window, &rect, GDK_GRAVITY_NORTH_WEST, GDK_GRAVITY_NORTH_WEST, NULL);
+        }
+    }
+    else
+#endif // GTK_CHECK_VERSION(3,22,0)
+    {
+        gtk_menu_popup(
                   GTK_MENU(menu->m_menu),
                   NULL,           // parent menu shell
                   NULL,           // parent menu item
@@ -5927,6 +5947,7 @@ bool wxWindowGTK::DoPopupMenu( wxMenu *menu, int x, int y )
                   0,                            // button used to activate it
                   gtk_get_current_event_time()
                 );
+    }
 
     // it is possible for gtk_menu_popup() to fail
     if (!gtk_widget_get_visible(GTK_WIDGET(menu->m_menu)))

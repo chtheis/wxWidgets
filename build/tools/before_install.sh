@@ -22,13 +22,14 @@ case $(uname -s) in
                 # Disable some (but not all) output.
                 $SUDO apt-get -q -o=Dpkg::Use-Pty=0 "$@"
 
-                echo "-> Done with $?"
+                rc=$?
+                echo "-> Done with $rc"
 
-                return $?
+                return $rc
             }
 
+            codename=$(lsb_release --codename --short)
             if [ "$wxUSE_ASAN" = 1 ]; then
-                codename=$(lsb_release --codename --short)
                 # Enable the `-dbgsym` repositories.
                 echo "deb http://ddebs.ubuntu.com ${codename} main restricted universe multiverse
                 deb http://ddebs.ubuntu.com ${codename}-updates main restricted universe multiverse" | \
@@ -63,6 +64,18 @@ case $(uname -s) in
                             ;;
                     esac
 
+                    case "$codename" in
+                        jammy)
+                            # Under Ubuntu 22.04 installing libgstreamer1.0-dev
+                            # fails because it depends on libunwind-dev which
+                            # is not going to be installed because it conflicts
+                            # with the pre-installed (in GitHub Actions
+                            # environment) libc++-dev, so we need to install it
+                            # directly to avoid errors later.
+                            extra_deps="$extra_deps libunwind-dev"
+                            ;;
+                    esac
+
                     extra_deps="$extra_deps \
                             libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
                             libglu1-mesa-dev"
@@ -81,17 +94,23 @@ case $(uname -s) in
 
             if ! run_apt install -y $pkg_install $dbgsym_pkgs; then
                 if [ -z "$dbgsym_pkgs" ]; then
-                    exit $?
+                    exit 1
                 fi
 
                 # Retry without dbgsym packages that currently fail to install
                 # under Ubuntu Focal (20.04).
                 echo 'Installing with dbgsym packages failed, retrying without...'
-                run_apt install -y $pkg_install
+                if ! run_apt install -y $pkg_install; then
+                    exit 1
+                fi
             else
                 touch wx_dbgsym_available
             fi
         fi
+        ;;
+
+    FreeBSD)
+        pkg install -q -y gspell gstreamer1 gtk3 jpeg-turbo libnotify libsecret mesa-libs pkgconf png tiff webkit2-gtk3
         ;;
 
     Darwin)

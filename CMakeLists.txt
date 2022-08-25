@@ -7,7 +7,7 @@
 # Licence:     wxWindows licence
 #############################################################################
 
-cmake_minimum_required(VERSION 2.8.12)
+cmake_minimum_required(VERSION 3.0)
 
 if(NOT CMAKE_CONFIGURATION_TYPES)
     get_property(HAVE_MULTI_CONFIG_GENERATOR GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
@@ -16,6 +16,8 @@ if(NOT CMAKE_CONFIGURATION_TYPES)
         set(CMAKE_CONFIGURATION_TYPES "Debug;Release")
     endif()
 endif()
+
+file(TO_CMAKE_PATH "${CMAKE_INSTALL_PREFIX}" CMAKE_INSTALL_PREFIX)
 
 # https://blog.kitware.com/cmake-and-the-default-build-type/
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
@@ -88,7 +90,12 @@ set(wxSOVERSION ${wxSOVERSION_MAJOR}.${WX_AGE}.${WX_REVISION})
 set(wxVERSION ${wxMAJOR_VERSION}.${wxMINOR_VERSION}.${wxRELEASE_NUMBER})
 set(wxCOPYRIGHT "2002-2022 wxWidgets")
 
-project(wxWidgets VERSION ${wxVERSION})
+set(wxLANGUAGES C CXX)
+if(APPLE AND NOT CMAKE_VERSION VERSION_LESS "3.16")
+    list(APPEND wxLANGUAGES OBJCXX)
+endif()
+
+project(wxWidgets VERSION ${wxVERSION} LANGUAGES ${wxLANGUAGES})
 
 include(build/cmake/main.cmake)
 

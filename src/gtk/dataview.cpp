@@ -752,12 +752,12 @@ wxgtk_tree_model_get_n_columns (GtkTreeModel *tree_model)
     if ( wxtree_model->stamp == 0 )
         return 0;
 
-    return wxtree_model->internal->GetDataViewModel()->GetColumnCount();
+    return wxtree_model->internal->GetOwner()->GetColumnCount();
 }
 
 static GType
 wxgtk_tree_model_get_column_type (GtkTreeModel *tree_model,
-                                  gint          index)
+                                  gint          WXUNUSED(index))
 {
     GtkWxTreeModel *wxtree_model = (GtkWxTreeModel *) tree_model;
     g_return_val_if_fail (GTK_IS_WX_TREE_MODEL (wxtree_model), G_TYPE_INVALID);
@@ -765,19 +765,7 @@ wxgtk_tree_model_get_column_type (GtkTreeModel *tree_model,
     if ( wxtree_model->stamp == 0 )
         return G_TYPE_INVALID;
 
-    GType gtype = G_TYPE_INVALID;
-
-    wxString wxtype = wxtree_model->internal->GetDataViewModel()->GetColumnType( (unsigned int) index );
-
-    if (wxtype == wxT("string"))
-        gtype = G_TYPE_STRING;
-    else
-    {
-        gtype = G_TYPE_POINTER;
-        // wxFAIL_MSG( wxT("non-string columns not supported for searching yet") );
-    }
-
-    return gtype;
+    return G_TYPE_STRING;
 }
 
 static gboolean
@@ -824,20 +812,12 @@ wxgtk_tree_model_get_value (GtkTreeModel *tree_model,
         return;
 
     wxDataViewModel *model = wxtree_model->internal->GetDataViewModel();
-    wxString mtype = model->GetColumnType( (unsigned int) column );
-    if (mtype == wxT("string"))
-    {
-        wxVariant variant;
-        g_value_init( value, G_TYPE_STRING );
-        wxDataViewItem item( (void*) iter->user_data );
-        model->GetValue( variant, item, (unsigned int) column );
+    wxVariant variant;
+    g_value_init( value, G_TYPE_STRING );
+    wxDataViewItem item( (void*) iter->user_data );
+    model->GetValue( variant, item, (unsigned int) column );
 
-        g_value_set_string( value, variant.GetString().utf8_str() );
-    }
-    else
-    {
-        wxFAIL_MSG( wxT("non-string columns not supported yet") );
-    }
+    g_value_set_string( value, variant.GetString().utf8_str() );
 }
 
 static gboolean
@@ -2569,22 +2549,32 @@ wxDataViewBitmapRenderer::wxDataViewBitmapRenderer( const wxString &varianttype,
 
 bool wxDataViewBitmapRenderer::SetValue( const wxVariant &value )
 {
-    wxBitmap bitmap;
-    if (value.GetType() == wxS("wxBitmap"))
+    wxBitmapBundle bitmapBundle;
+    if (value.GetType() == wxS("wxBitmapBundle"))
     {
+        bitmapBundle << value;
+    }
+    else if (value.GetType() == wxS("wxBitmap"))
+    {
+        wxBitmap bitmap;
         bitmap << value;
+        bitmapBundle = wxBitmapBundle(bitmap);
     }
     else if (value.GetType() == wxS("wxIcon"))
     {
         wxIcon icon;
         icon << value;
-        bitmap.CopyFromIcon(icon);
+        bitmapBundle = wxBitmapBundle(icon);
     }
 
 #ifdef __WXGTK3__
-    WX_CELL_RENDERER_PIXBUF(m_renderer)->Set(bitmap);
+    WX_CELL_RENDERER_PIXBUF(m_renderer)->Set(bitmapBundle);
 #else
-    g_object_set(G_OBJECT(m_renderer), "pixbuf", bitmap.IsOk() ? bitmap.GetPixbuf() : NULL, NULL);
+    g_object_set(G_OBJECT(m_renderer),
+        "pixbuf",
+        bitmapBundle.IsOk() ? bitmapBundle.GetBitmap(wxDefaultSize).GetPixbuf()
+                            : NULL,
+        NULL);
 #endif
 
     return true;
@@ -2593,6 +2583,15 @@ bool wxDataViewBitmapRenderer::SetValue( const wxVariant &value )
 bool wxDataViewBitmapRenderer::GetValue( wxVariant &WXUNUSED(value) ) const
 {
     return false;
+}
+
+bool
+wxDataViewBitmapRenderer::IsCompatibleVariantType(const wxString& variantType) const
+{
+    // We can accept values of any types checked by SetValue().
+    return variantType == wxS("wxBitmapBundle")
+            || variantType == wxS("wxBitmap")
+            || variantType == wxS("wxIcon");
 }
 
 // ---------------------------------------------------------
@@ -3199,14 +3198,6 @@ gtk_dataview_header_button_press_callback( GtkWidget *WXUNUSED(widget),
     return FALSE;
 }
 
-// Helper for wxGtkTreeCellDataFunc() below.
-static void wxGtkTreeSetVisibleProp(GtkCellRenderer *renderer, gboolean visible)
-{
-    wxGtkValue gvalue( G_TYPE_BOOLEAN );
-    g_value_set_boolean( gvalue, visible );
-    g_object_set_property( G_OBJECT(renderer), "visible", gvalue );
-}
-
 extern "C"
 {
 
@@ -3233,25 +3224,14 @@ static void wxGtkTreeCellDataFunc( GtkTreeViewColumn *WXUNUSED(column),
 
     wxDataViewModel *wx_model = tree_model->internal->GetDataViewModel();
 
-    if (!wx_model->IsVirtualListModel())
-    {
-        gboolean visible = wx_model->HasValue(item, column);
-        wxGtkTreeSetVisibleProp(renderer, visible);
-
-        if ( !visible )
-            return;
-    }
-
     cell->GtkSetCurrentItem(item);
 
-    if (!cell->PrepareForItem(wx_model, item, column))
-    {
-        // We don't have any value in this cell, after all, so hide it.
-        if (!wx_model->IsVirtualListModel())
-        {
-            wxGtkTreeSetVisibleProp(renderer, FALSE);
-        }
-    }
+    // Cells without values shouldn't be rendered at all.
+    const bool visible = cell->PrepareForItem(wx_model, item, column);
+
+    wxGtkValue gvalue( G_TYPE_BOOLEAN );
+    g_value_set_boolean( gvalue, visible );
+    g_object_set_property( G_OBJECT(renderer), "visible", gvalue );
 }
 
 } // extern "C"

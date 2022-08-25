@@ -4,7 +4,7 @@ name: MSW cross-builds
 on:
   push:
     branches:
-      - master
+      - 3.2
     paths-ignore:
       - '.github/ISSUE_TEMPLATE/**'
       - '.github/workflows/ci.yml'
@@ -27,7 +27,7 @@ on:
       - 'wxwidgets.props'
   pull_request:
     branches:
-      - master
+      - 3.2
     paths-ignore:
       - '.github/ISSUE_TEMPLATE/**'
       - '.github/workflows/ci.yml'
@@ -48,6 +48,9 @@ on:
       - '*.md'
       - '*.yml'
       - 'wxwidgets.props'
+
+permissions:
+  contents: read
 
 jobs:
   msw-cross-build:
@@ -131,7 +134,7 @@ jobs:
           submodules: 'recursive'
 
       - name: Install CCache
-        uses: hendrikmuhs/ccache-action@v1.2.1
+        uses: hendrikmuhs/ccache-action@578e14bc3f06099346125f52ed0008433eccbedf
         with:
           key: ${{ matrix.name }}
 

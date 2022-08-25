@@ -1330,7 +1330,7 @@ public:
             Assumes members in this wxVariant list as pending
             replacement values.
     */
-    bool AreAllChildrenSpecified( wxVariant* pendingList = NULL ) const;
+    bool AreAllChildrenSpecified( const wxVariant* pendingList = NULL ) const;
 
     /**
         Returns @true if children of this property are component values (for instance,
@@ -2053,7 +2053,7 @@ public:
         @remarks This method is const since it doesn't actually modify value, but posts
                 given variant as pending value, stored in wxPropertyGrid.
     */
-    void SetValueInEvent( wxVariant value ) const;
+    void SetValueInEvent( const wxVariant& value ) const;
 
     /**
         Sets property's value to unspecified (i.e. Null variant).

@@ -60,14 +60,21 @@ httpbin_launch() {
     # However don't upgrade to a version which is too new because then
     # it may not support Python version that we actually have (this one
     # still works with 3.4, 20.0.1 is the last one to support 3.5).
-    python3 -m pip install --user --upgrade pip==19.1.1
-    python3 -m pip install --user wheel
+    case "$dist_codename" in
+        jammy)
+            # pip is newer than 19.1 already, don't "upgrade" it.
+            ;;
+
+        *)
+            python3 -m pip install --user --upgrade pip==19.1.1
+            python3 -m pip install --user wheel
+    esac
 
     echo "Installing using `python3 -m pip --version`"
 
     python3 -m pip install $pip_explicit_deps httpbin --user
-    python3 -m httpbin.core 2>&1 >httpbin.log &
-    WX_TEST_WEBREQUEST_URL="http://localhost:5000"
+    python3 -m httpbin.core --port 50500 2>&1 >httpbin.log &
+    WX_TEST_WEBREQUEST_URL="http://localhost:50500"
 }
 
 httpbin_show_log() {
