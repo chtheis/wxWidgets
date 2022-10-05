@@ -408,7 +408,7 @@ public:
      */
     wxToolBarToolBase *AddStretchableSpace();
 
-    //@{
+    ///@{
     /**
         Adds a tool to the toolbar.
 
@@ -504,7 +504,7 @@ public:
                                const wxString& shortHelp = wxEmptyString,
                                const wxString& longHelp = wxEmptyString,
                                wxObject* clientData = NULL);
-    //@}
+    ///@}
 
     /**
         Deletes all the tools in the toolbar.
@@ -591,7 +591,7 @@ public:
         you should use @c wxArtProvider::GetNativeSizeHint(wxART_TOOLBAR) but
         in any case, as the bitmap size is deduced automatically from the size
         of the bitmaps associated with the tools added to the toolbar, it is
-        usually unnecessary to call neither this function nor
+        usually unnecessary to call either this function or
         SetToolBitmapSize() at all.
 
         @remarks Note that this is the size of the bitmap you pass to AddTool(),
@@ -732,7 +732,7 @@ public:
      */
     wxToolBarToolBase *InsertStretchableSpace(size_t pos);
 
-    //@{
+    ///@{
     /**
         Inserts the tool with the specified attributes into the toolbar at the
         given position.
@@ -757,7 +757,7 @@ public:
 
     wxToolBarToolBase* InsertTool(size_t pos,
                                   wxToolBarToolBase* tool);
-    //@}
+    ///@}
 
     /**
         Called when the user clicks on a tool with the left mouse button. This
@@ -845,7 +845,7 @@ public:
     */
     bool SetDropdownMenu(int id, wxMenu* menu);
 
-    //@{
+    ///@{
     /**
         Set the values to be used as margins for the toolbar.
 
@@ -875,7 +875,7 @@ public:
         @see GetMargins(), wxSize
     */
     void SetMargins(const wxSize& size);
-    //@}
+    ///@}
 
     /**
         Sets the default size of each tool bitmap.
