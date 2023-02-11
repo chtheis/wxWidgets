@@ -56,6 +56,8 @@ wxEND_EVENT_TABLE()
 
 - (void)setWebView:(wxWebViewWebKit*)webView;
 
+- (void)doCommandBySelector:(SEL)aSelector;
+
 @end
 
 @interface WebViewNavigationDelegate : NSObject<WKNavigationDelegate>
@@ -637,6 +639,16 @@ void wxWebViewWebKit::RegisterHandler(wxSharedPtr<wxWebViewHandler> handler)
 
     return [super performKeyEquivalent:event];
 }
+
+- (void)doCommandBySelector:(SEL)aSelector
+{
+    wxWidgetCocoaImpl* impl = (wxWidgetCocoaImpl* ) wxWidgetImpl::FindFromWXWidget( self );
+    if (aSelector != @selector(noop:))
+        [super doCommandBySelector:aSelector];
+    else if (impl)
+        impl->doCommandBySelector(aSelector, self, _cmd);
+}
+
 #endif // !defined(__WXOSX_IPHONE__)
 
 @end

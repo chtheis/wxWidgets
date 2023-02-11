@@ -393,6 +393,25 @@ void wxTextCtrl::Init()
     m_isNativeCaretShown = true;
 }
 
+wxTextCtrl::wxTextCtrl()
+{
+    Init();
+}
+
+wxTextCtrl::wxTextCtrl(wxWindow *parent,
+                       wxWindowID id,
+                       const wxString& value,
+                       const wxPoint& pos,
+                       const wxSize& size,
+                       long style,
+                       const wxValidator& validator,
+                       const wxString& name)
+{
+    Init();
+
+    Create(parent, id, value, pos, size, style, validator, name);
+}
+
 wxTextCtrl::~wxTextCtrl()
 {
 #if wxUSE_DRAG_AND_DROP && wxUSE_RICHEDIT
@@ -2782,10 +2801,9 @@ wxSize wxTextCtrl::DoGetSizeFromTextSize(int xlen, int ylen) const
         hText += EDIT_HEIGHT_FROM_CHAR_HEIGHT(cy) - cy;
     }
 
-    // Perhaps the user wants something different from CharHeight, or ylen
-    // is used as the height of a multiline text.
-    if ( ylen > 0 )
-        hText += ylen - GetCharHeight();
+    // We should always use at least the specified height if it's valid.
+    if ( ylen > hText )
+        hText = ylen;
 
     return wxSize(wText, hText);
 }

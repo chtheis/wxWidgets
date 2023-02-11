@@ -83,9 +83,16 @@ static bool HasClientDecor(GtkWidget* widget)
     if (wxGTKImpl::IsX11(display))
         return false;
 
-#if defined(GDK_WINDOWING_WAYLAND) && GTK_CHECK_VERSION(3,22,0)
-    if (wxGTKImpl::IsWayland(display) && wx_is_at_least_gtk3(22))
-        return !gdk_wayland_display_prefers_ssd(display);
+    // Contrary to the annotation in the header, this function has become
+    // available only in 3.22.25 and not 3.22.0.
+#if defined(GDK_WINDOWING_WAYLAND) && GTK_CHECK_VERSION(3,22,25)
+    if (wxGTKImpl::IsWayland(display))
+    {
+#ifndef __WXGTK4__
+        if (gtk_check_version(3, 22, 25) == NULL)
+#endif
+            return !gdk_wayland_display_prefers_ssd(display);
+    }
 #endif
     return true;
 }
@@ -254,7 +261,11 @@ size_allocate(GtkWidget*, GtkAllocation* alloc, wxTopLevelWindowGTK* win)
         decorSize.right = a.width - a2.width - a2.x;
         decorSize.top = a2.y;
         decorSize.bottom = a.height - a2.height - a2.y;
-        win->GTKUpdateDecorSize(decorSize);
+        if (memcmp(&win->m_decorSize, &decorSize, sizeof(decorSize)) != 0)
+        {
+            win->GTKUpdateDecorSize(decorSize);
+            win->m_clientWidth = 0;
+        }
     }
     if (win->m_clientWidth  != alloc->width ||
         win->m_clientHeight != alloc->height)
@@ -1459,6 +1470,16 @@ void wxTopLevelWindowGTK::GTKUpdateDecorSize(const DecorSize& decorSize)
 
     if (HasClientDecor(m_widget))
     {
+        if (m_decorSize.top == 0 && !gtk_widget_get_realized(m_widget) && m_deferShowAllowed)
+        {
+            // shrink m_widget by decoration size before initial show,
+            // so that overall size remains correct
+            const int w = wxMax(m_width  - decorSize.left - decorSize.right,  m_minWidth);
+            const int h = wxMax(m_height - decorSize.top  - decorSize.bottom, m_minHeight);
+            gtk_window_resize(GTK_WINDOW(m_widget), w, h);
+            if (!gtk_window_get_resizable(GTK_WINDOW(m_widget)))
+                gtk_widget_set_size_request(GTK_WIDGET(m_widget), w, h);
+        }
         m_decorSize = decorSize;
         return;
     }
