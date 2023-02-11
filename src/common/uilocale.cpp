@@ -56,6 +56,11 @@ inline void CheckLanguageVariant(wxLocaleIdent& locId)
     }
 }
 
+inline bool IsDefaultCLocale(const wxString& locale)
+{
+    return locale.IsSameAs("C", false) || locale.IsSameAs("POSIX", false);
+}
+
 } // anonymous namespace
 
 
@@ -210,7 +215,7 @@ wxLocaleIdent wxLocaleIdent::FromTag(const wxString& tag)
 
         case 4:
             // Must be an ISO 15924 script.
-            locId.m_script = (*it).Left(1).Upper() + (*it).Mid(2).Lower();
+            locId.m_script = it->Capitalize();
             break;
 
         default:
@@ -258,7 +263,7 @@ wxLocaleIdent wxLocaleIdent::FromTag(const wxString& tag)
 
 wxLocaleIdent& wxLocaleIdent::Language(const wxString& language)
 {
-    if (language.IsSameAs("C", false) || language.IsSameAs("POSIX", false))
+    if (IsDefaultCLocale(language))
     {
         m_language = language.Upper();
     }
@@ -294,7 +299,7 @@ wxLocaleIdent& wxLocaleIdent::Script(const wxString& script)
         script.find_first_not_of(validCharsAlpha) == wxString::npos)
     {
         // Capitalize first character
-        m_script = script.Left(1).Upper() + script.Mid(2).Lower();
+        m_script = script.Capitalize();
     }
     else if (!script.empty())
     {
@@ -470,7 +475,7 @@ bool wxUILocale::UseDefault()
 bool wxUILocale::UseLocaleName(const wxString& localeName)
 {
     wxUILocaleImpl* impl = NULL;
-    if (localeName.IsSameAs("C", false) || localeName.IsSameAs("POSIX", false))
+    if (IsDefaultCLocale(localeName))
     {
         impl = wxUILocaleImpl::CreateStdC();
     }
@@ -627,6 +632,13 @@ wxUILocale::~wxUILocale()
 }
 
 
+/* static */
+wxLocaleIdent wxUILocale::GetSystemLocaleId()
+{
+    wxUILocale defaultLocale(wxUILocaleImpl::CreateUserDefault());
+    return defaultLocale.GetLocaleId();
+}
+
 /*static*/
 int wxUILocale::GetSystemLanguage()
 {
@@ -652,7 +664,7 @@ int wxUILocale::GetSystemLanguage()
             }
             if (pos != wxString::npos)
             {
-                if (languagesDB[ixLanguage].LocaleTag == lang)
+                if (languagesDB[ixLanguage].LocaleTag == langShort)
                 {
                     ixShort = ixLanguage;
                 }
@@ -664,7 +676,33 @@ int wxUILocale::GetSystemLanguage()
         }
     }
 
-    // no info about this language in the database
+    // no info about the preferred UI language in the database
+    // fall back to default locale
+    return GetSystemLocale();
+}
+
+/*static*/
+int wxUILocale::GetSystemLocale()
+{
+    const wxLocaleIdent locId = GetSystemLocaleId();
+
+    // Find wxLanguageInfo corresponding to the default locale.
+    const wxLanguageInfo* defaultLanguage = wxUILocale::FindLanguageInfo(locId);
+
+    // Check if it really corresponds to this locale: we could find it via the
+    // fallback on the language, which is something that it generally makes
+    // sense for FindLanguageInfo() to do, but in this case we really need the
+    // locale.
+    if ( defaultLanguage )
+    {
+        // We have to handle the "C" locale specially as its name is different
+        // from the "en-US" tag found for it, but we do still want to return
+        // English for it.
+        const wxString tag = locId.GetTag(wxLOCALE_TAGTYPE_BCP47);
+        if ( tag == defaultLanguage->LocaleTag || IsDefaultCLocale(tag) )
+            return defaultLanguage->Language;
+    }
+
     return wxLANGUAGE_UNKNOWN;
 }
 
@@ -729,9 +767,9 @@ wxString wxUILocale::GetLanguageCanonicalName(int lang)
 }
 
 /* static */
-const wxLanguageInfo* wxUILocale::FindLanguageInfo(const wxString& locale)
+const wxLanguageInfo* wxUILocale::FindLanguageInfo(const wxString& localeOrig)
 {
-    if (locale.empty())
+    if (localeOrig.empty())
         return NULL;
 
     CreateLanguagesDB();
@@ -740,9 +778,14 @@ const wxLanguageInfo* wxUILocale::FindLanguageInfo(const wxString& locale)
     // to the entry description in the language database.
     // The locale string may have the form "language[_region][.codeset]".
     // We ignore the "codeset" part here.
+    wxString locale = localeOrig;
+    if (IsDefaultCLocale(locale))
+    {
+        locale = "en_US";
+    }
     wxString region;
     wxString languageOnly = locale.BeforeFirst('.').BeforeFirst('_', &region);
-    wxString language= languageOnly;
+    wxString language = languageOnly;
     if (!region.empty())
     {
         // Construct description consisting of language and region
@@ -791,7 +834,14 @@ const wxLanguageInfo* wxUILocale::FindLanguageInfo(const wxLocaleIdent& locId)
     CreateLanguagesDB();
 
     const wxLanguageInfo* infoRet = NULL;
+
+    wxString lang = locId.GetLanguage();
     wxString localeTag = locId.GetTag(wxLOCALE_TAGTYPE_BCP47);
+    if (IsDefaultCLocale(lang))
+    {
+        lang = wxS("en");
+        localeTag = "en-US";
+    }
 
     const wxLanguageInfos& languagesDB = wxGetLanguageInfos();
     const size_t count = languagesDB.size();
@@ -806,7 +856,7 @@ const wxLanguageInfo* wxUILocale::FindLanguageInfo(const wxLocaleIdent& locId)
             break;
         }
 
-        if (wxStricmp(localeTag, info->LocaleTag.BeforeFirst(wxS('-'))) == 0)
+        if (wxStricmp(lang, info->LocaleTag.BeforeFirst(wxS('-'))) == 0)
         {
             // a match -- but maybe we'll find an exact one later, so continue
             // looking

@@ -22,7 +22,11 @@
     #include "wx/app.h"
 #endif
 
-#include "wx/accel.h"
+#if wxUSE_ACCEL
+    #include "wx/accel.h"
+    #include "wx/scopedptr.h"
+#endif // wxUSE_ACCEL
+
 #include "wx/stockitem.h"
 
 #include "wx/gtk/private.h"
@@ -755,21 +759,6 @@ void wxMenuItem::ClearExtraAccels()
 }
 
 #endif // wxUSE_ACCEL
-
-void wxMenuItem::SetBitmap(const wxBitmapBundle& bitmap)
-{
-    if (m_kind == wxITEM_NORMAL)
-        m_bitmap = bitmap;
-    else
-    {
-        wxFAIL_MSG("only normal menu items can have bitmaps");
-    }
-}
-
-wxBitmap wxMenuItem::GetBitmap() const
-{
-    return GetBitmapFromBundle(m_bitmap);
-}
 
 void wxMenuItem::SetupBitmaps(wxWindow *win)
 {

@@ -78,14 +78,25 @@ public:
         DoSetBitmap(bmpUnchecked, false);
     }
 
-    void SetBitmap(const wxBitmapBundle& bmp, bool bChecked = true)
+    virtual void SetBitmap(const wxBitmapBundle& bmp) wxOVERRIDE
     {
-        DoSetBitmap(bmp, bChecked);
+        DoSetBitmap(bmp, true);
+    }
+
+    virtual wxBitmap GetBitmap() const wxOVERRIDE
+    {
+        return GetBitmap(true);
     }
 
     void SetupBitmaps();
 
-    wxBitmap GetBitmap(bool bChecked = true) const;
+    // The functions taking bChecked are wxMSW-specific.
+    void SetBitmap(const wxBitmapBundle& bmp, bool bChecked)
+    {
+        DoSetBitmap(bmp, bChecked);
+    }
+
+    wxBitmap GetBitmap(bool bChecked) const;
 
 #if wxUSE_OWNER_DRAWN
     void SetDisabledBitmap(const wxBitmapBundle& bmpDisabled)
@@ -138,9 +149,11 @@ private:
     // position (which is not really supposed to ever happen).
     int MSGetMenuItemPos() const;
 
+    // Get the extent of the given text using the correct font.
+    wxSize GetMenuTextExtent(const wxString& text) const;
+
     // item bitmaps
-    wxBitmapBundle m_bmpChecked,     // bitmap to put near the item
-                   m_bmpUnchecked;   // (checked is used also for 'uncheckable' items)
+    wxBitmapBundle m_bmpUnchecked;   // (used only for checkable items)
 #if wxUSE_OWNER_DRAWN
     wxBitmapBundle m_bmpDisabled;
 #endif // wxUSE_OWNER_DRAWN

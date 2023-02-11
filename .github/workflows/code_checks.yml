@@ -4,10 +4,13 @@ name: Code Checks
 on:
   push:
     branches:
-      - master
+      - 3.2
   pull_request:
     branches:
-      - master
+      - 3.2
+
+permissions:
+  contents: read
 
 jobs:
   check-unix:
@@ -16,7 +19,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Install codespell
         run: |
@@ -33,13 +36,13 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Check for trailing whitespace and TABs
         run: |
-            git fetch --depth=1 origin master
+            git fetch --depth=1 origin 3.2
             git -c core.whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol,tab-in-indent \
-                diff --check origin/master \
+                diff --check origin/3.2 \
                 ':!.gitmodules' \
                 ':!Makefile.in' \
                 ':!config.guess' \
@@ -47,6 +50,7 @@ jobs:
                 ':!configure' \
                 ':!descrip.mms' \
                 ':!install-sh' \
+                ':!docs/doxygen/doxygen-awesome-css/*' \
                 ':!**/*akefile*' \
                 ':!**/*.pbxproj' \
                 ':!**/Info*.plist*' \
@@ -61,7 +65,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Install dos2unix
         run: |
@@ -70,3 +74,23 @@ jobs:
       - name: Check for mixed EOL
         run: |
             ./misc/scripts/check_mixed_eol.sh
+
+  check-cxx-style:
+    runs-on: ubuntu-20.04
+    name: Check C++ Style
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Check for C++11 keywords
+        run: |
+            git fetch --depth=1 origin 3.2
+            if git diff origin/3.2 \
+               ':!.github/workflows/code_checks.yml' \
+               ':!src/stc/scintilla/' \
+               | sed 's@//.*@@' \
+               | grep -E '(override|noexcept|nullptr[^_])'; then
+              echo "::error ::Please use C++98 equivalents of the C++11 keywords in this branch."
+              exit 1
+            fi

@@ -250,7 +250,7 @@ public:
 
         @since 3.1.5
     */
-    virtual wxVersionInfo GetVersionInfo(const wxString& backend);
+    virtual wxVersionInfo GetVersionInfo();
 };
 
 /**
@@ -479,8 +479,8 @@ public:
     @event{EVT_WEBVIEW_TITLE_CHANGED(id, func)}
        Process a @c wxEVT_WEBVIEW_TITLE_CHANGED event, generated when
        the page title changes. Use GetString to get the title.
-    @event{EVT_WEBVIEW_FULL_SCREEN_CHANGED(id, func)}
-       Process a @c EVT_WEBVIEW_FULL_SCREEN_CHANGED event, generated when
+    @event{EVT_WEBVIEW_FULLSCREEN_CHANGED(id, func)}
+       Process a @c wxEVT_WEBVIEW_FULLSCREEN_CHANGED event, generated when
        the page wants to enter or leave fullscreen. Use GetInt to get the status.
        Not implemented for the IE backend
        and is only available in wxWidgets 3.1.5 or later.
@@ -851,7 +851,7 @@ public:
     virtual bool RemoveScriptMessageHandler(const wxString& name);
 
     /**
-        Injects the specified script into the webpage’s content.
+        Injects the specified script into the webpage's content.
 
         @param javascript The javascript code to add.
         @param injectionTime Specifies when the script will be executed.
@@ -1305,8 +1305,8 @@ public:
     @event{EVT_WEBVIEW_TITLE_CHANGED(id, func)}
        Process a @c wxEVT_WEBVIEW_TITLE_CHANGED event, generated when
        the page title changes. Use GetString to get the title.
-    @event{EVT_WEBVIEW_FULL_SCREEN_CHANGED(id, func)}
-       Process a @c EVT_WEBVIEW_FULL_SCREEN_CHANGED event, generated when
+    @event{EVT_WEBVIEW_FULLSCREEN_CHANGED(id, func)}
+       Process a @c wxEVT_WEBVIEW_FULLSCREEN_CHANGED event, generated when
        the page wants to enter or leave fullscreen. Use GetInt to get the status.
        Not implemented for the IE backend
        and is only available in wxWidgets 3.1.5 or later.
@@ -1379,3 +1379,6 @@ wxEventType wxEVT_WEBVIEW_LOADED;
 wxEventType wxEVT_WEBVIEW_ERROR;
 wxEventType wxEVT_WEBVIEW_NEWWINDOW;
 wxEventType wxEVT_WEBVIEW_TITLE_CHANGED;
+wxEventType wxEVT_WEBVIEW_FULLSCREEN_CHANGED;
+wxEventType wxEVT_WEBVIEW_SCRIPT_MESSAGE_RECEIVED;
+wxEventType wxEVT_WEBVIEW_SCRIPT_RESULT;

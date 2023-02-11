@@ -954,7 +954,7 @@ static wxString wxCreateTempImpl(
     if ( fdTemp == -1 )
     {
         // this might be not necessary as mkstemp() on most systems should have
-        // already done it but it doesn't hurt neither...
+        // already done it but it doesn't hurt either...
         path.clear();
     }
     else // mkstemp() succeeded
@@ -1608,10 +1608,20 @@ bool wxFileName::ReplaceHomeDir(wxPathFormat format)
     if (homedir.empty())
         return false;
 
+    // Avoid replacing the leading "/" with "~", this would result in an
+    // invalid path, if nothing else
+    if (homedir == '/')
+        return true; // but it is not an error, so don't return false
+
     wxString stringForm = GetPath(wxPATH_GET_VOLUME, format);
         // do not touch the file name and the extension
 
-    stringForm.Replace(homedir, "~");
+    wxString rest;
+    if ( stringForm.StartsWith(homedir, &rest) )
+    {
+        stringForm = "~";
+        stringForm += rest;
+    }
 
     // Now assign ourselves the modified path:
     Assign(stringForm, GetFullName(), format);
@@ -2232,16 +2242,27 @@ wxString wxFileName::GetLongPath() const
             return pathOut;
         }
     }
+    else // GetLongPathName() failed.
+    {
+        // The error returned for non-existent UNC paths is different, to make
+        // things more interesting.
+        const DWORD err = ::GetLastError();
+        if ( err == ERROR_FILE_NOT_FOUND || err == ERROR_BAD_NETPATH )
+        {
+            // No need to try to do anything else, we're not going to be able
+            // to find a long path form of a non-existent path anyhow.
+            return path;
+        }
+    }
 
-    // Some other error occured.
+    // File exists, but some other error occurred.
     // We need to call FindFirstFile on each component in turn.
 
     WIN32_FIND_DATA findFileData;
     HANDLE hFind;
 
     if ( HasVolume() )
-        pathOut = GetVolume() +
-                  GetVolumeSeparator(wxPATH_DOS) +
+        pathOut = wxGetVolumeString(GetVolume(), wxPATH_DOS) +
                   GetPathSeparator(wxPATH_DOS);
     else
         pathOut.clear();

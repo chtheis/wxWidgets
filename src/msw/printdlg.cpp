@@ -87,7 +87,8 @@ public:
             return false;
 
         DWORD bufSize = 0;
-        if ( !::GetPrinter(m_hPrinter, level, NULL, 0, &bufSize) || !bufSize )
+        ::GetPrinter(m_hPrinter, level, NULL, 0, &bufSize);
+        if ( !bufSize )
             return false;
 
         if ( !::GetPrinter(m_hPrinter,
@@ -806,10 +807,10 @@ int wxWindowsPrintDialog::ShowModal()
 {
     WX_HOOK_MODAL_DIALOG();
 
-    wxWindowDisabler disableOthers(this);
-
     wxWindow* const parent = GetParentForModalDialog(m_parent, GetWindowStyle());
     WXHWND hWndParent = parent ? GetHwndOf(parent) : NULL;
+
+    wxWindowDisabler disableOthers(this, parent);
 
     ConvertToNative( m_printDialogData );
 

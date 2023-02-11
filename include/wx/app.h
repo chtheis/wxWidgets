@@ -153,7 +153,7 @@ public:
         // used for paths, config, and other places the user doesn't see
         //
         // by default the display name is the same as app name or a capitalized
-        // version of the program if app name was not set neither but it's
+        // version of the program if app name was not set either but it's
         // usually better to set it explicitly to something nicer
     wxString GetAppDisplayName() const;
 
@@ -536,6 +536,10 @@ protected:
     bool m_bDoPendingEventProcessing;
 
     friend class WXDLLIMPEXP_FWD_BASE wxEvtHandler;
+
+    // Stub virtual functions for forward binary compatibility. DO NOT USE.
+    virtual void* WXReservedApp1(void*);
+    virtual void* WXReservedApp2(void*);
 
     // the application object is a singleton anyhow, there is no sense in
     // copying it

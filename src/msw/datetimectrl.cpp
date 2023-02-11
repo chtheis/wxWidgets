@@ -20,6 +20,7 @@
 
 
 #include "wx/datetimectrl.h"
+#include "wx/uilocale.h"
 
 #ifdef wxNEEDS_DATETIMEPICKCTRL
 
@@ -184,7 +185,7 @@ wxSize wxDateTimePickerCtrl::DoGetBestSize() const
         // DPI change, so we never use the vertical component of the value
         // returned by it.
         //
-        // Unfortunately, resetting this style doesn't work neither, so we have
+        // Unfortunately, resetting this style doesn't work either, so we have
         // to create a whole new window just for this, which is pretty wasteful
         // but seems unavoidable.
         HWND hwnd;
@@ -231,7 +232,7 @@ wxSize wxDateTimePickerCtrl::DoGetBestSize() const
     {
         // Use the same native format as the underlying native control.
 #if wxUSE_INTL
-        wxString s = wxDateTime::Now().Format(wxLocale::GetOSInfo(MSWGetFormat()));
+        wxString s = wxDateTime::Now().Format(wxUILocale::GetCurrent().GetInfo(MSWGetFormat()));
 #else // !wxUSE_INTL
         wxString s("XXX-YYY-ZZZZ");
 #endif // wxUSE_INTL/!wxUSE_INTL

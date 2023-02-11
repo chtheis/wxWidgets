@@ -22,7 +22,8 @@
     - wxNO_OP
     - wxCLEAR
     - wxXOR
-    and, in particular, do @em not support the commonly used @c wxINVERT.
+    and only support the commonly used @c wxINVERT when the source colour is
+    white (as it is implemented using wxCOMPOSITION_DIFF composition mode).
 */
 enum wxRasterOperationMode
 {
@@ -201,7 +202,7 @@ public:
     /**
         @name Coordinate conversion functions
     */
-    //@{
+    ///@{
 
     /**
         Convert @e device X coordinate to logical coordinate, using the current
@@ -351,14 +352,14 @@ public:
     */
     wxSize LogicalToDeviceRel(const wxSize& dim) const;
 
-    //@}
+    ///@}
 
 
 
     /**
         @name Drawing functions
     */
-    //@{
+    ///@{
 
     /**
         Clears the device context using the current background brush.
@@ -861,13 +862,13 @@ public:
     */
     void CrossHair(const wxPoint& pt);
 
-    //@}
+    ///@}
 
 
     /**
         @name Clipping region functions
     */
-    //@{
+    ///@{
 
     /**
         Destroys the current clipping region so that none of the DC is clipped.
@@ -951,13 +952,13 @@ public:
      */
     void SetDeviceClippingRegion(const wxRegion& region);
 
-    //@}
+    ///@}
 
 
     /**
         @name Text/character extent functions
     */
-    //@{
+    ///@{
 
     /**
         Gets the character height of the currently set font.
@@ -1091,13 +1092,13 @@ public:
     */
     wxSize GetTextExtent(const wxString& string) const;
 
-    //@}
+    ///@}
 
 
     /**
         @name Text properties functions
     */
-    //@{
+    ///@{
 
     /**
         Returns the current background mode: @c wxBRUSHSTYLE_SOLID or @c wxBRUSHSTYLE_TRANSPARENT.
@@ -1188,13 +1189,13 @@ public:
     */
     void SetLayoutDirection(wxLayoutDirection dir);
 
-    //@}
+    ///@}
 
 
     /**
         @name Bounding box functions
     */
-    //@{
+    ///@{
 
     /**
         Adds the specified point to the bounding box which can be retrieved
@@ -1232,13 +1233,13 @@ public:
     */
     void ResetBoundingBox();
 
-    //@}
+    ///@}
 
 
     /**
         @name Page and document start/end functions
     */
-    //@{
+    ///@{
 
     /**
         Starts a document (only relevant when outputting to a printer).
@@ -1261,13 +1262,13 @@ public:
     */
     void EndPage();
 
-    //@}
+    ///@}
 
 
     /**
         @name Bit-Block Transfer operations (blit)
     */
-    //@{
+    ///@{
 
     /**
         Copy from a source DC to this DC.
@@ -1429,13 +1430,13 @@ public:
                      bool useMask = false,
                      wxCoord xsrcMask = wxDefaultCoord,
                      wxCoord ysrcMask = wxDefaultCoord);
-    //@}
+    ///@}
 
 
     /**
         @name Background/foreground brush and pen
     */
-    //@{
+    ///@{
 
     /**
         Gets the brush used for painting the background.
@@ -1487,7 +1488,7 @@ public:
     */
     void SetPen(const wxPen& pen);
 
-    //@}
+    ///@}
 
 
     /**
@@ -1499,10 +1500,24 @@ public:
             - Background brush
             - Layout direction
 
+        Note that the scaling factor is not considered to be an attribute of
+        wxDC and is @e not copied by this function.
+
         @param dc
             A valid (i.e. its IsOk() must return @true) source device context.
      */
     void CopyAttributes(const wxDC& dc);
+
+    /**
+        Returns the factor used for converting logical pixels to physical ones.
+
+        Returns the same value as wxWindow::GetContentScaleFactor() for the
+        device contexts associated with a window and the same value as
+        wxBitmap::GetScaleFactor() for the associated bitmap for wxMemoryDC.
+
+        @since 2.9.5
+     */
+    double GetContentScaleFactor() const;
 
     /**
         Returns the depth (number of bits/pixel) of this DC.
@@ -1549,6 +1564,54 @@ public:
         Returns the resolution of the device in pixels per inch.
     */
     wxSize GetPPI() const;
+
+    /**
+        Convert DPI-independent pixel values to the value in pixels appropriate
+        for the DC.
+
+        See wxWindow::FromDIP(const wxSize& sz) for more info about converting
+        device independent pixel values.
+
+        @since 3.1.7
+     */
+    wxSize FromDIP(const wxSize& sz) const;
+
+    /// @overload
+    wxPoint FromDIP(const wxPoint& pt) const;
+
+    /**
+        Convert DPI-independent value in pixels to the value in pixels
+        appropriate for the DC.
+
+        This is the same as FromDIP(const wxSize& sz) overload, but assumes
+        that the resolution is the same in horizontal and vertical directions.
+
+        @since 3.1.7
+     */
+    int FromDIP(int d) const;
+
+    /**
+        Convert pixel values of the current DC to DPI-independent pixel values.
+
+        See wxWindow::ToDIP(const wxSize& sz) for more info about converting
+        device independent pixel values.
+
+        @since 3.1.7
+     */
+    wxSize ToDIP(const wxSize& sz) const;
+
+    /// @overload
+    wxPoint ToDIP(const wxPoint& pt) const;
+
+    /**
+        Convert pixel values of the current DC to DPI-independent pixel values.
+
+        This is the same as ToDIP(const wxSize& sz) overload, but assumes
+        that the resolution is the same in horizontal and vertical directions.
+
+        @since 3.1.7
+     */
+    int ToDIP(int d) const;
 
     /**
         Gets the horizontal and vertical extent of this device context in @e device units.
@@ -1691,7 +1754,7 @@ public:
         See the notes about the availability of these functions in the class
         documentation.
     */
-    //@{
+    ///@{
 
     /**
         Check if the use of transformation matrix is supported by the current
@@ -1732,13 +1795,13 @@ public:
     */
     void ResetTransformMatrix();
 
-    //@}
+    ///@}
 
 
     /**
         @name query capabilities
     */
-    //@{
+    ///@{
 
     /**
        Does the DC support drawing bitmaps?
@@ -1750,7 +1813,7 @@ public:
     */
     bool CanGetTextExtent() const;
 
-    //@}
+    ///@}
 
     /**
        Returns a value that can be used as a handle to the native drawing
@@ -1795,7 +1858,7 @@ public:
      */
     void SetLogicalOrigin(wxCoord x, wxCoord y);
 
-    //@{
+    ///@{
     /**
         Return the coordinates of the logical point (0, 0).
 
@@ -1803,7 +1866,7 @@ public:
      */
     void GetLogicalOrigin(wxCoord *x, wxCoord *y) const;
     wxPoint GetLogicalOrigin() const;
-    //@}
+    ///@}
 
     /**
        If supported by the platform and the @a wxDC implementation, this method
@@ -1862,7 +1925,7 @@ public:
 class wxDCClipper
 {
 public:
-    //@{
+    ///@{
     /**
         Sets the clipping region to the specified region/coordinates.
 
@@ -1871,7 +1934,7 @@ public:
     wxDCClipper(wxDC& dc, const wxRegion& region);
     wxDCClipper(wxDC& dc, const wxRect& rect);
     wxDCClipper(wxDC& dc, wxCoord x, wxCoord y, wxCoord w, wxCoord h);
-    //@}
+    ///@}
 
     /**
         Destroys the clipping region associated with the DC passed to the ctor.

@@ -20,6 +20,8 @@
 #include "wx/intl.h"
 #include "wx/uilocale.h"
 
+#include "wx/private/glibc.h"
+
 #if wxUSE_INTL
 
 // ----------------------------------------------------------------------------
@@ -175,13 +177,17 @@ void IntlTestCase::DateTimeFmtFrench()
 #ifdef __GLIBC__
     // Versions of glibc up to 2.7 wrongly used periods for French locale
     // separator.
-#if __GLIBC__ > 2 || __GLIBC_MINOR__ >= 8
+#if wxCHECK_GLIBC_VERSION(2, 8)
     static const char *FRENCH_DATE_FMT = "%d/%m/%Y";
 #else
     static const char *FRENCH_DATE_FMT = "%d.%m.%Y";
 #endif
     static const char *FRENCH_LONG_DATE_FMT = "%a %d %b %Y";
     static const char *FRENCH_DATE_TIME_FMT = "%a %d %b %Y %H:%M:%S";
+#elif defined(__FREEBSD__)
+    static const char *FRENCH_DATE_FMT = "%d.%m.%Y";
+    static const char *FRENCH_LONG_DATE_FMT = "%a %e %b %Y";
+    static const char *FRENCH_DATE_TIME_FMT = "%a %e %b %X %Y";
 #else
     static const char *FRENCH_DATE_FMT = "%d/%m/%Y";
     static const char *FRENCH_LONG_DATE_FMT = "%A %d %B %Y";
@@ -233,9 +239,13 @@ void IntlTestCase::IsAvailable()
 
 TEST_CASE("wxLocale::Default", "[locale]")
 {
+    const int langDef = wxUILocale::GetSystemLanguage();
+    INFO("System language: " << wxUILocale::GetLanguageName(langDef));
+    CHECK( wxLocale::IsAvailable(langDef) );
+
     wxLocale loc;
 
-    REQUIRE( loc.Init(wxLANGUAGE_DEFAULT, wxLOCALE_DONT_LOAD_DEFAULT) );
+    REQUIRE( loc.Init(langDef, wxLOCALE_DONT_LOAD_DEFAULT) );
 }
 
 #endif // wxUSE_UNICODE
@@ -407,6 +417,13 @@ TEST_CASE("wxUILocale::FindLanguageInfo", "[uilocale]")
     CheckFindLanguage("English", "en");
     CheckFindLanguage("English_United States", "en_US");
     CheckFindLanguage("English_United States.utf8", "en_US");
+    // Test tag that includes an explicit script
+    CheckFindLanguage("sr-Latn-RS", "sr_RS@latin");
+
+    // Test mixed locales: we should still detect the language correctly, even
+    // if we don't recognize the full locale.
+    CheckFindLanguage("en_FR", "en");
+    CheckFindLanguage("fr_DE", "fr");
 }
 
 // Test which can be used to check if the given locale tag is supported.
@@ -423,6 +440,77 @@ TEST_CASE("wxUILocale::FromTag", "[.]")
 
     const wxUILocale loc(locId);
     WARN("Locale \"" << tag << "\" supported: " << loc.IsSupported() );
+}
+
+namespace
+{
+
+const wxString GetLangName(int lang)
+{
+    switch ( lang )
+    {
+        case wxLANGUAGE_DEFAULT:
+            return "DEFAULT";
+
+        case wxLANGUAGE_UNKNOWN:
+            return "UNKNOWN";
+
+        default:
+            return wxUILocale::GetLanguageName(lang);
+    }
+}
+
+wxString GetLocaleDesc(const char* when)
+{
+    const wxUILocale& curloc = wxUILocale::GetCurrent();
+    const wxLocaleIdent locid = curloc.GetLocaleId();
+
+    // Make the output slightly more readable.
+    wxString decsep = curloc.GetInfo(wxLOCALE_DECIMAL_POINT);
+    if ( decsep == "." )
+        decsep = "point";
+    else if ( decsep == "," )
+        decsep = "comma";
+    else
+        decsep = wxString::Format("UNKNOWN (%s)", decsep);
+
+    return wxString::Format("%s\ncurrent locale:\t%s (decimal separator: %s)",
+                            when,
+                            locid.IsEmpty() ? wxString("NONE") : locid.GetTag(),
+                            decsep);
+}
+
+} // anonymous namespace
+
+// Test to show information about the system locale and the effects of various
+// ways to change the current locale.
+TEST_CASE("wxUILocale::ShowSystem", "[.]")
+{
+    WARN("System locale identifier:\t"
+            << wxUILocale::GetSystemLocaleId().GetTag() << "\n"
+         "System locale as language:\t"
+            << GetLangName(wxUILocale::GetSystemLocale()) << "\n"
+         "System language identifier:\t"
+            << GetLangName(wxUILocale::GetSystemLanguage()));
+
+    WARN(GetLocaleDesc("Before calling any locale functions"));
+
+    wxLocale locDef;
+    CHECK( locDef.Init(wxLANGUAGE_DEFAULT, wxLOCALE_DONT_LOAD_DEFAULT) );
+    WARN(GetLocaleDesc("After wxLocale::Init(wxLANGUAGE_DEFAULT)"));
+
+    CHECK( wxUILocale::UseDefault() );
+    WARN(GetLocaleDesc("After wxUILocale::UseDefault()"));
+
+    wxString preferredLangsStr;
+    const wxVector<wxString> preferredLangs = wxUILocale::GetPreferredUILanguages();
+    for (size_t n = 0; n < preferredLangs.size(); ++n)
+    {
+        if ( !preferredLangsStr.empty() )
+            preferredLangsStr += ", ";
+        preferredLangsStr += preferredLangs[n];
+    }
+    WARN("Preferred UI languages:\n" << preferredLangsStr);
 }
 
 #endif // wxUSE_INTL

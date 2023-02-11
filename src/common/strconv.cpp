@@ -38,6 +38,7 @@
 #ifdef HAVE_ICONV
     #include <iconv.h>
     #include "wx/thread.h"
+    #include "wx/private/glibc.h"
 #endif
 
 #include "wx/encconv.h"
@@ -2037,7 +2038,7 @@ wxMBConvUTF32swap::FromWChar(char *dst, size_t dstLen,
 //     bytes-left-in-input buffer is non-zero. Hence, this alternative test for
 //     iconv() failure.
 //     [This bug does not appear in glibc 2.2.]
-#if defined(__GLIBC__) && __GLIBC__ == 2 && __GLIBC_MINOR__ <= 1
+#if wxCHECK_GLIBC_VERSION(2, 0) && !wxCHECK_GLIBC_VERSION(2, 2)
 #define ICONV_FAILED(cres, bufLeft) ((cres == (size_t)-1) && \
                                      (errno != E2BIG || bufLeft != 0))
 #else
@@ -2821,7 +2822,7 @@ void wxCSConv::SetEncoding(wxFontEncoding encoding)
                 // It's ok to not have encoding value if we have a name for it.
                 m_encoding = wxFONTENCODING_SYSTEM;
             }
-            else // No name neither.
+            else // No name either.
             {
                 // Fall back to the system default encoding in this case (not
                 // sure how much sense does this make but this is how the old

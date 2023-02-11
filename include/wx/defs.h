@@ -216,6 +216,24 @@
 #define __USE_W32_SOCKETS
 #endif
 
+#if defined(_MSVC_LANG)
+/*
+   We want to always use the really supported C++ standard when using MSVC
+   recent enough to define _MSVC_LANG, even if /Zc:__cplusplus option is not
+   used, but unfortunately we can't just redefine __cplusplus as _MSVC_LANG
+   because this is not allowed by the standard and, worse, doesn't work in
+   practice (it results in a warning and nothing else).
+
+   So, instead, we define a macro for testing __cplusplus which also works in
+   this case.
+*/
+    #define wxCHECK_CXX_STD(ver) (_MSVC_LANG >= (ver))
+#elif defined(__cplusplus)
+    #define wxCHECK_CXX_STD(ver) (__cplusplus >= (ver))
+#else
+    #define wxCHECK_CXX_STD(ver) 0
+#endif
+
 /*  ---------------------------------------------------------------------------- */
 /*  check for native bool type and TRUE/FALSE constants */
 /*  ---------------------------------------------------------------------------- */
@@ -302,7 +320,7 @@ typedef short int WXTYPE;
 
 /* wxFALLTHROUGH is used to notate explicit fallthroughs in switch statements */
 
-#if __cplusplus >= 201703L || (defined(_MSVC_LANG) && _MSVC_LANG >= 201703L)
+#if wxCHECK_CXX_STD(201703L)
     #define wxFALLTHROUGH [[fallthrough]]
 #elif __cplusplus >= 201103L && defined(__has_warning) && WX_HAS_CLANG_FEATURE(cxx_attributes)
     #define wxFALLTHROUGH [[clang::fallthrough]]
@@ -587,7 +605,12 @@ typedef short int WXTYPE;
     #if __has_cpp_attribute(deprecated)
         /* gcc 5 claims to support this attribute, but actually doesn't */
         #if !defined(__GNUC__) || wxCHECK_GCC_VERSION(6, 0)
-            #define wxHAS_DEPRECATED_ATTR
+            /* Even later gcc versions only support it when using C++11. */
+            #ifdef __cplusplus
+                #if __cplusplus >= 201103L
+                    #define wxHAS_DEPRECATED_ATTR
+                #endif
+            #endif
         #endif
     #endif
 #endif
@@ -678,6 +701,43 @@ typedef short int WXTYPE;
 #else
 #   define wxDEPRECATED_BUT_USED_INTERNALLY(x) wxDEPRECATED(x)
 #endif
+
+/*
+    Some gcc versions choke on __has_cpp_attribute(gnu::visibility) due to the
+    presence of the colon, but we only need this macro in C++ code, so just
+    don't define it when using C.
+ */
+#ifdef __cplusplus
+
+/*
+    wxDEPRECATED_EXPORT_CORE is a special macro used for the classes that are
+    exported and deprecated (but not when building the library itself, as this
+    would trigger warnings about using this class when implementing it).
+
+    It exists because standard [[deprecated]] attribute can't be combined with
+    legacy __attribute__((visibility)), but we can't use [[visibility]] instead
+    of the latter because it can't be use in the same place in the declarations
+    where we use WXDLLIMPEXP_CORE. So we define this special macro which uses
+    the standard visibility attribute just where we can't do otherwise.
+ */
+#ifdef WXBUILDING
+    #define wxDEPRECATED_EXPORT_CORE(msg) WXDLLIMPEXP_CORE
+#else /* !WXBUILDING */
+    #ifdef wxHAS_DEPRECATED_ATTR
+        #if __has_cpp_attribute(gnu::visibility)
+            #define wxDEPRECATED_EXPORT_CORE(msg) \
+                [[deprecated(msg), gnu::visibility("default")]]
+        #endif
+    #endif
+
+    #ifndef wxDEPRECATED_EXPORT_CORE
+        /* Fall back when nothing special is needed or available. */
+        #define wxDEPRECATED_EXPORT_CORE(msg) \
+            wxDEPRECATED_MSG(msg) WXDLLIMPEXP_CORE
+    #endif
+#endif /* WXBUILDING/!WXBUILDING */
+
+#endif /* __cplusplus */
 
 /*
    Macros to suppress and restore gcc warnings, requires g++ >= 4.6 and don't
@@ -1303,7 +1363,7 @@ typedef double wxDouble;
     for doing this, that do the same thing as would happen without them, but
     without the warnings.
  */
-#if defined(__cplusplus) && (__cplusplus >= 202002L)
+#if wxCHECK_CXX_STD(202002L)
     #define wxALLOW_COMBINING_ENUMS_IMPL(en1, en2)                            \
         inline int operator|(en1 v1, en2 v2)                                  \
             { return static_cast<int>(v1) | static_cast<int>(v2); }           \
@@ -1447,11 +1507,21 @@ enum wxBorder
     Elements of these enums can be combined with each other when using
     wxSizer::Add() overload not using wxSizerFlags.
  */
+wxALLOW_COMBINING_ENUMS(wxAlignment, wxBorder)
 wxALLOW_COMBINING_ENUMS(wxAlignment, wxDirection)
 wxALLOW_COMBINING_ENUMS(wxAlignment, wxGeometryCentre)
+wxALLOW_COMBINING_ENUMS(wxAlignment, wxSizerFlagBits)
 wxALLOW_COMBINING_ENUMS(wxAlignment, wxStretch)
-wxALLOW_COMBINING_ENUMS(wxDirection, wxStretch)
+wxALLOW_COMBINING_ENUMS(wxBorder, wxDirection)
+wxALLOW_COMBINING_ENUMS(wxBorder, wxGeometryCentre)
+wxALLOW_COMBINING_ENUMS(wxBorder, wxSizerFlagBits)
+wxALLOW_COMBINING_ENUMS(wxBorder, wxStretch)
 wxALLOW_COMBINING_ENUMS(wxDirection, wxGeometryCentre)
+wxALLOW_COMBINING_ENUMS(wxDirection, wxStretch)
+wxALLOW_COMBINING_ENUMS(wxDirection, wxSizerFlagBits)
+wxALLOW_COMBINING_ENUMS(wxGeometryCentre, wxSizerFlagBits)
+wxALLOW_COMBINING_ENUMS(wxGeometryCentre, wxStretch)
+wxALLOW_COMBINING_ENUMS(wxSizerFlagBits, wxStretch)
 
 /*  ---------------------------------------------------------------------------- */
 /*  Window style flags */
@@ -2815,31 +2885,6 @@ typedef HIShapeRef WXHRGN;
 
 #if defined(__WXMAC__)
 
-/* Definitions of 32-bit/64-bit types
- * These are typedef'd exactly the same way in newer OS X headers so
- * redefinition when real headers are included should not be a problem.  If
- * it is, the types are being defined wrongly here.
- * The purpose of these types is so they can be used from public wx headers.
- * and also because the older (pre-Leopard) headers don't define them.
- */
-
-/* NOTE: We don't pollute namespace with CGFLOAT_MIN/MAX/IS_DOUBLE macros
- * since they are unlikely to be needed in a public header.
- */
-#if defined(__LP64__) && __LP64__
-    typedef double CGFloat;
-#else
-    typedef float CGFloat;
-#endif
-
-#if (defined(__LP64__) && __LP64__) || (defined(NS_BUILD_32_LIKE_64) && NS_BUILD_32_LIKE_64)
-typedef long NSInteger;
-typedef unsigned long NSUInteger;
-#else
-typedef int NSInteger;
-typedef unsigned int NSUInteger;
-#endif
-
 /* Objective-C type declarations.
  * These are to be used in public headers in lieu of NSSomething* because
  * Objective-C class names are not available in C/C++ code.
@@ -3210,25 +3255,15 @@ typedef const void* WXWidget;
     (!defined wxUSE_NO_MANIFEST || wxUSE_NO_MANIFEST == 0 ) && \
     ( defined _MSC_FULL_VER && _MSC_FULL_VER >= 140040130 )
 
-#define WX_CC_MANIFEST(cpu)                     \
+#define WX_CC_MANIFEST                          \
     "/manifestdependency:\"type='win32'         \
      name='Microsoft.Windows.Common-Controls'   \
      version='6.0.0.0'                          \
-     processorArchitecture='" cpu "'            \
+     processorArchitecture='*'                  \
      publicKeyToken='6595b64144ccf1df'          \
      language='*'\""
 
-#if defined _M_IX86
-    #pragma comment(linker, WX_CC_MANIFEST("x86"))
-#elif defined _M_X64
-    #pragma comment(linker, WX_CC_MANIFEST("amd64"))
-#elif defined _M_ARM64
-    #pragma comment(linker, WX_CC_MANIFEST("arm64"))
-#elif defined _M_IA64
-    #pragma comment(linker, WX_CC_MANIFEST("ia64"))
-#else
-    #pragma comment(linker, WX_CC_MANIFEST("*"))
-#endif
+#pragma comment(linker, WX_CC_MANIFEST)
 
 #endif /* !wxUSE_NO_MANIFEST && _MSC_FULL_VER >= 140040130 */
 

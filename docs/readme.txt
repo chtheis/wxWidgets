@@ -1,9 +1,9 @@
-wxWidgets 3.1.6 Release Notes
+wxWidgets 3.2.2 Release Notes
 =============================
 
-Welcome to the latest development release of wxWidgets, a free and open source
-cross-platform C++ framework for writing advanced GUI applications using native
-controls.
+Welcome to the new stable release of wxWidgets, a free and open source
+cross-platform C++ framework for writing advanced GUI applications using
+native controls.
 
 wxWidgets allows you to write native-looking GUI applications for all the major
 desktop platforms and also helps with abstracting the differences in the non-GUI
@@ -16,7 +16,7 @@ more about wxWidgets at:
 
 Documentation is available online at:
 
-* https://docs.wxwidgets.org/3.1.6/
+* https://docs.wxwidgets.org/3.2.2/
 
 wxWidgets sources and binaries for the selected platforms are available for
 download from:
@@ -25,94 +25,72 @@ download from:
 
 or, for a more more permanent but less convenient to use link, from
 
-* https://github.com/wxWidgets/wxWidgets/releases/tag/v3.1.6/
+* https://github.com/wxWidgets/wxWidgets/releases/tag/v3.2.2/
 
-Please see https://docs.wxwidgets.org/3.1.6/overview_install.html for full
+Please see https://docs.wxwidgets.org/3.2.2/overview_install.html for full
 installation instructions.
 
 
 
-Changes since 3.1.5
+Changes since 3.2.1
 -------------------
 
-In almost a year since the previous release, there have been more than 1700
-commits from 82 unique contributors (41 with multiple contributions), so it is
-impossible to summarize all the changes in this document without making it too
-long, please see the fuller changelog at
+This release comes only a few months after the previous 3.2.1, but contains
+an important number of bug fixes and enhancements, further improving high DPI
+support, including:
 
-https://raw.githubusercontent.com/wxWidgets/wxWidgets/v3.1.6/docs/changes.txt
+- Better window resizing on DPI change in wxMSW.
+- Fix using native icons returned by wxArtProvider.
+- Fix menu items using custom font in high DPI.
+- High resolution icons support in wxGenericTreeCtrl and wxGenericListCtrl.
 
-for more details, but here are some of the most important changes:
+and also improving locale-related code under Mac and Unix systems:
 
-- New wxBitmapBundle class allowing to provide art work for both normal and
-  high DPI in a simple way.
-- New wxUILocale class replacing the old (but still available) wxLocale, but
-  not suffering from its multiple problems and providing more functionality.
-- Support for using native spell-checking in wxTextCtrl.
-- Support for undo/redo in wxTextCtrl in wxOSX.
-- Better drag-and-drop implementation in wxOSX.
-- Fixes for important bugs in wxDataViewCtrl under all platforms.
-- Many improvements and bug fixes for Wayland support in wxGTK.
-- Support for the latest OS versions (Windows 11, macOS 12) and compilers (MSVS
-  2022, gcc 12, clang 13).
-- Project bug tracker has been moved to GitHub Issues.
+- wxUILocale::UseDefault() works for locales using different language and
+  region under Mac and fails when used for unsupported locale under Unix.
+- New wxUILocale::GetSystemLocaleId() allows to retrieve such locales IDs.
+- wxUILocale::GetCurrent() works currently for "C" locale under Mac.
 
-Notice that in spite of all the changes, this release remains almost completely
-compatible with 3.1.5 at the API level, so upgrading to it if you're already
-using wxWidgets 3 should be straightforward.
+Some other user-visible enhancements made in this release:
 
+- Allow selecting and copying text in wxMessageDialog in wxGTK.
+- Improve size and behaviour of in-place editor in wxGenericTreeCtrl.
+- Fix sometimes missing overwrite prompt in "Save" file dialog in wxMSW.
+- Fix glitch in drawing wxStaticBox with a control as label in wxMSW.
 
-Changes since 3.0
------------------
+There are also some important bug fixes:
 
-Compared to the stable 3.0.x series, this version brings too many
-improvements and even more bug fixes to list them all, but here is the
-maximally condensed summary:
+- Fix regression in saving TIFF images that could end up truncated.
+- Fix long standing bug in parsing wxHTTP responses.
+- Fix data race when processing events generated in a worker thread.
+- Avoid appending extraneous NUL bytes to wxTextDataObject text in wxMSW.
+- Fix handling of fonts with fractional sizes in wxOSX.
+- Fix resizing wxGLCanvas with EGL and Wayland in wxGTK.
+- Fix display artefacts when using AUI without compositor under X11.
+- Work around crashes when using wxTextCtrl with MinGW TDM 64.
+- Fix for a possible crash when handling menu events under Mac.
+- Third-party libraries have been updated to the latest versions.
 
-- Build system improvements: support for new compilers (up to MSVS 2022,
-  g++ 11, clang 13) with an even simpler way of using wxWidgets from
-  MSVS, with wxwidgets.props file, and OS versions as well as an
-  entirely new CMake build system.
-- Support for native dark mode under macOS 10.14 Mojave and later and
-  support for macOS 11 and later on ARM hardware.
-- New features: HTTPS and HTTP/2 support with wxWebRequest and friends;
-  support for freezing rows/columns in wxGrid; mouse gesture events
-  (GSoC 2017 project); non-integer font sizes and arbitrary font weights
-  in wxFont; fractional pen widths in wxGraphicsContext; arbitrary label
-  windows in wxStaticBox; markup in wxDataViewCtrl items text; better
-  support for high DPI monitors and per-monitor DPI, notably the
-  addition of wxBitmapBundle, and dynamic DPI changes support under MSW;
-  support for ZIP 64 files; LZMA compression; much improved
-  accessibility support under MSW; new Edge-based wxWebView
-  implementation.
-- New classes: wxActivityIndicator, wxAddRemoveCtrl, wxAppProgressIndicator,
-  wxBitmapBundle, wxNativeWindow, wxPersistentComboBox,
-  wxPowerResourceBlocker, wxSecretStore, wxTempFFile and many new
-  features in the existing classes.
-- New XRC handlers for all the new and some of the existing classes.
-- Significant improvements to: wxBusyInfo, wxDataViewCtrl, wxDirDialog, wxGrid,
-  wxNotificationMessage, wxSpinCtrl, wxStaticBox, wxStyledTextCtrl,
-  wxUIActionSimulator.
-- Improvements to compile-time safety with the possibility to disable dangerous
-  implicit conversions between wxString and "char*" strings.
-- Latest versions of all bundled 3rd party libraries, including all the
-  security fixes and support for WebKit 2 and GStreamer 1.7 under Unix.
-- Revamped OpenGL support better suited to modern OpenGL (3.2+).
-- Further C++11 and later support improvements, wxWidgets can be built using
-  C++20 compilers.
-- A lot of bug fixes, especially in wxGTK3 and wxOSX/Cocoa ports.
-- New experimental wxQt port.
+All in all, this release includes ~150 fixes from 27 unique contributors,
+please see the full change log for more details:
+
+https://raw.githubusercontent.com/wxWidgets/wxWidgets/v3.2.2/docs/changes.txt
+
+This release is API and ABI-compatible with the previous 3.2.x releases, so
+the existing applications don't even need to be rebuilt to profit from all the
+fixes above if they use shared/dynamic libraries. And if they do need to be
+recompiled, this can be done without any changes to the code.
 
 
 
-Platforms Supported
+Supported Platforms
 -------------------
 
 This version of wxWidgets supports the following primary platforms:
 
 * Windows XP, Vista, 7, 8, 10 and 11 (32/64 bits).
 * Most Unix variants using the GTK+ toolkit (version 2.6 or newer)
-* macOS (10.10 or newer) using Cocoa
+* macOS (10.10 or newer) using Cocoa (x86-64 or ARM).
 
 There is some support for the following platforms:
 
@@ -196,4 +174,4 @@ developed by its users and your contributions to it are always welcome!
 
 Have fun!
 
-The wxWidgets Team, April 2022
+The wxWidgets Team, February 2023

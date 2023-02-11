@@ -581,7 +581,7 @@ void wxSpinCtrl::UpdateBuddyStyle()
     // keys only -- but only if we don't need to be able to enter "-" in it as
     // otherwise this would become impossible and also if we don't use
     // hexadecimal as entering "x" of the "0x" prefix wouldn't be allowed
-    // neither then
+    // either then
     wxMSWWinStyleUpdater(GetBuddyHwnd())
         .TurnOnOrOff(m_min >= 0 && GetBase() == 10, ES_NUMBER);
 }
@@ -734,6 +734,13 @@ bool wxSpinCtrl::MSWOnNotify(int WXUNUSED(idCtrl), WXLPARAM lParam, WXLPARAM *re
     return TRUE;
 }
 
+// Reuse the function defined in src/msw/textentry.cpp.
+extern bool wxMSWTextEntryShouldPreProcessMessage(WXMSG* msg);
+
+bool wxSpinCtrl::MSWShouldPreProcessMessage(WXMSG* msg)
+{
+    return wxMSWTextEntryShouldPreProcessMessage(msg);
+}
 
 // ----------------------------------------------------------------------------
 // size calculations

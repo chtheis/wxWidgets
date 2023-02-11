@@ -408,7 +408,7 @@ public:
      */
     wxToolBarToolBase *AddStretchableSpace();
 
-    //@{
+    ///@{
     /**
         Adds a tool to the toolbar.
 
@@ -504,7 +504,7 @@ public:
                                const wxString& shortHelp = wxEmptyString,
                                const wxString& longHelp = wxEmptyString,
                                wxObject* clientData = NULL);
-    //@}
+    ///@}
 
     /**
         Deletes all the tools in the toolbar.
@@ -591,8 +591,13 @@ public:
         you should use @c wxArtProvider::GetNativeSizeHint(wxART_TOOLBAR) but
         in any case, as the bitmap size is deduced automatically from the size
         of the bitmaps associated with the tools added to the toolbar, it is
-        usually unnecessary to call neither this function nor
+        usually unnecessary to call either this function or
         SetToolBitmapSize() at all.
+
+        This function returns the size in logical pixels, for consistency with
+        SetToolBitmapSize() which takes size in logical pixels. See @ref
+        overview_high_dpi for more information about the different pixel types
+        and how to convert between them.
 
         @remarks Note that this is the size of the bitmap you pass to AddTool(),
             and not the eventual size of the tool button.
@@ -732,7 +737,7 @@ public:
      */
     wxToolBarToolBase *InsertStretchableSpace(size_t pos);
 
-    //@{
+    ///@{
     /**
         Inserts the tool with the specified attributes into the toolbar at the
         given position.
@@ -757,7 +762,7 @@ public:
 
     wxToolBarToolBase* InsertTool(size_t pos,
                                   wxToolBarToolBase* tool);
-    //@}
+    ///@}
 
     /**
         Called when the user clicks on a tool with the left mouse button. This
@@ -845,7 +850,7 @@ public:
     */
     bool SetDropdownMenu(int id, wxMenu* menu);
 
-    //@{
+    ///@{
     /**
         Set the values to be used as margins for the toolbar.
 
@@ -875,22 +880,31 @@ public:
         @see GetMargins(), wxSize
     */
     void SetMargins(const wxSize& size);
-    //@}
+    ///@}
 
     /**
-        Sets the default size of each tool bitmap. The default bitmap size is 16
-        by 15 pixels.
+        Sets the default size of each tool bitmap.
 
         It is usually unnecessary to call this function, as the tools will
         always be made big enough to fit the size of the bitmaps used in them.
+        Moreover, calling it forces wxToolBar to scale its images in high DPI
+        using the provided size, instead of letting wxBitmapBundle used for the
+        tool bitmaps determine the best suitable bitmap size, which may result
+        in suboptimal appearance.
 
-        If you do call it, note that @a size does @e not need to be multiplied
-        by the DPI-dependent factor even under MSW, where it would normally be
-        necessary, as the toolbar adjusts this size to the current DPI
-        automatically.
+        If you do call it, it must be done before toolbar is Realize()'d.
+
+        Example of using this function to force the bitmaps to be at least
+        32 pixels wide and tall (at normal DPI):
+        @code
+            toolbar->SetToolBitmapSize(FromDIP(wxSize(32, 32)));
+            toolbar->AddTool(wxID_NEW, "New", wxBitmapBundle::FromXXX(...));
+            ...
+            toolbar->Realize();
+        @endcode
 
         @param size
-            The size of the bitmaps in the toolbar.
+            The size of the bitmaps in the toolbar in logical pixels.
 
         @see GetToolBitmapSize(), GetToolSize()
     */

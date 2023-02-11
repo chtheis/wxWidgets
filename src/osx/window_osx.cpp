@@ -1325,13 +1325,13 @@ void wxWindowMac::DoGetTextExtent(const wxString& str,
     delete ctx;
 
     if ( externalLeading )
-        *externalLeading = (wxCoord)wxRound(e);
+        *externalLeading = (wxCoord)ceil(e);
     if ( descent )
-        *descent = (wxCoord)wxRound(d);
+        *descent = (wxCoord)ceil(d);
     if ( x )
-        *x = (wxCoord)wxRound(w);
+        *x = (wxCoord)ceil(w);
     if ( y )
-        *y = (wxCoord)wxRound(h);
+        *y = (wxCoord)ceil(h);
 }
 
 /*
@@ -1393,6 +1393,8 @@ void wxWindowMac::WarpPointer(int x_pos, int y_pos)
     event.m_leftDown = mState.LeftIsDown();
     event.m_middleDown = mState.MiddleIsDown();
     event.m_rightDown = mState.RightIsDown();
+    event.m_aux1Down = mState.Aux1IsDown();
+    event.m_aux2Down = mState.Aux2IsDown();
     event.m_metaDown = mState.MetaDown();
     event.m_shiftDown = mState.ShiftDown();
     event.SetId(GetId());

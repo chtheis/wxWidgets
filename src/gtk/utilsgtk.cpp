@@ -314,7 +314,7 @@ protected:
             return;
         }
 
-        // Also ignore frames which don't have neither the function name nor
+        // Also ignore frames which have neither the function name nor
         // the file name, showing them in the dialog wouldn't provide any
         // useful information.
         if ( name.empty() && frame.GetFileName().empty() )
@@ -434,11 +434,11 @@ wxString wxGUIAppTraits::GetDesktopEnvironment() const
 #if wxUSE_DETECT_SM
     if ( de.empty() )
     {
-        static const wxString s_SM = GetSM();
+        static const wxString s_SM = GetSM().Upper();
 
-        if (s_SM == wxT("GnomeSM"))
+        if (s_SM.Contains(wxT("GNOME")))
             de = wxT("GNOME");
-        else if (s_SM == wxT("KDE"))
+        else if (s_SM.Contains(wxT("KDE")))
             de = wxT("KDE");
     }
 #endif // wxUSE_DETECT_SM

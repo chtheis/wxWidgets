@@ -55,10 +55,17 @@ public:
         return m_imageList ? m_imageList->GetImageCount() : 0;
     }
 
-    // Return true if we have any images at all.
+    // Return true if we are using any images.
     bool HasImages() const
     {
-        return GetImageCount() != 0;
+        // Note that the sole presence of the image list indicates that we're
+        // using images, even if it is currently empty, because images can be
+        // added to it at any moment (it's common and valid to create an image
+        // list and associate it with the control first and fill it later) and
+        // it's better to err on the side of having the images and not showing
+        // anything if there are really none than decide that we don't have any
+        // and not show those that we do have.
+        return !m_images.empty() || m_imageList;
     }
 
     // Sets the images to use.
@@ -121,6 +128,70 @@ public:
 
         return m_imageList;
     }
+
+#if wxABI_VERSION >= 30202
+    // Return logical size of the image to use or (0, 0) if there are none.
+    wxSize GetImageLogicalSize(const wxWindow* window, int iconIndex) const
+    {
+        wxSize size;
+
+        if ( iconIndex != NO_IMAGE )
+        {
+            if ( !m_images.empty() )
+            {
+                size = m_images.at(iconIndex).GetPreferredLogicalSizeFor(window);
+            }
+            else if ( m_imageList )
+            {
+                // All images in the image list are of the same size.
+                size = m_imageList->GetSize();
+            }
+        }
+
+        return size;
+    }
+
+    // Overload provided to facilitate transition from the existing code using
+    // wxImageList::GetSize() -- don't use it in the new code.
+    void GetImageLogicalSize(const wxWindow* window, int iconIndex,
+                             int& width, int& height) const
+    {
+        const wxSize size = GetImageLogicalSize(window, iconIndex);
+        width = size.x;
+        height = size.y;
+    }
+
+    // Return the bitmap to use at the current DPI of the given window.
+    //
+    // If index == NO_IMAGE, just returns wxNullBitmap.
+    wxBitmap GetImageBitmapFor(const wxWindow* window, int iconIndex) const
+    {
+        wxBitmap bitmap;
+
+        if ( iconIndex != NO_IMAGE )
+        {
+            if ( !m_images.empty() )
+            {
+                bitmap = m_images.at(iconIndex).GetBitmapFor(window);
+            }
+            else if ( m_imageList )
+            {
+                bitmap = m_imageList->GetBitmap(iconIndex);
+            }
+            else
+            {
+                wxFAIL_MSG
+                (
+                    "Image index specified, but there are no images.\n"
+                    "\n"
+                    "Did you forget to call SetImages()?"
+                );
+            }
+        }
+
+        return bitmap;
+    }
+#endif // wxABI_VERSION >= 3.2.2
 
 protected:
     // This function is called when the images associated with the control

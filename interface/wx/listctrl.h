@@ -566,6 +566,11 @@ public:
 
     /**
         Returns the number of columns.
+
+        The control can have multiple columns only in wxLC_REPORT mode. In
+        wxLC_LIST mode this function returns 1, as a list is still considered
+        to have a (single) column. In wxLC_SMALL_ICON and wxLC_ICON modes, it
+        returns 0 as there are no columns at all.
     */
     int GetColumnCount() const;
 
@@ -1449,7 +1454,7 @@ public:
 
         @since 3.1.6
     */
-    int RemoveSortIndicator() const;
+    void RemoveSortIndicator();
 
     /**
         Returns the column that shows the sort indicator.
@@ -2077,14 +2082,14 @@ public:
     */
     void SetColumn(int col);
 
-    //@{
+    ///@{
     /**
         Sets client data for the item.
         Please note that client data is associated with the item and not with subitems.
     */
     void SetData(long data);
     void SetData(void* data);
-    //@}
+    ///@}
 
     /**
         Sets the font for the item.

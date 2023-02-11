@@ -3,14 +3,14 @@ name: Update Documentation
 on:
   push:
     branches:
-      - master
+      - 3.2
     paths:
       - '.github/workflows/docs_update.yml'
       - 'docs/**'
       - 'interface/**'
   pull_request:
     branches:
-      - master
+      - 3.2
     paths:
       - '.github/workflows/docs_update.yml'
       - 'docs/**'
@@ -18,14 +18,17 @@ on:
   workflow_dispatch:
 
 
+permissions:
+  contents: read
+
 jobs:
   update:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     name: Update Online Documentation
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Install doxygen
         run: |
@@ -50,7 +53,7 @@ jobs:
           fi
 
       - name: Upload
-        if: github.ref == 'refs/heads/master'
+        if: github.ref == 'refs/heads/3.2'
         working-directory: docs/doxygen
         env:
           DOCS_WEBSITE_KEY: ${{secrets.DOCS_WEBSITE_KEY}}
@@ -60,5 +63,5 @@ jobs:
           echo "$DOCS_WEBSITE_KEY" > "$HOME/.ssh/docs_website_key"
           chmod 600 "$HOME/.ssh/docs_website_key"
           echo "$DOCS_WEBSITE_SSH_CONFIG" > "$HOME/.ssh/config"
-          rsync --checksum --compress --delete --out-format='%n' --recursive out/html/ wxdocs:public_html/latest/ \
+          rsync --checksum --compress --delete --out-format='%n' --recursive out/html/ wxdocs:public_html/3.2/ \
             2> >(grep -v "Warning: Permanently added" 1>&2)

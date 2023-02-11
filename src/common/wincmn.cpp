@@ -565,7 +565,7 @@ bool wxWindowBase::Destroy()
     // this wxWindow object was default-constructed and its Create() method had
     // never been called. As we didn't send wxWindowCreateEvent in this case
     // (which is sent after successful creation), don't send the matching
-    // wxWindowDestroyEvent neither.
+    // wxWindowDestroyEvent either.
     if ( GetHandle() )
         SendDestroyEvent();
 
@@ -4162,3 +4162,6 @@ wxWindowBase::AdjustForLayoutDirection(wxCoord x,
 }
 
 
+void* wxWindowBase::WXReservedWindow1(void*) { return NULL; }
+void* wxWindowBase::WXReservedWindow2(void*) { return NULL; }
+void* wxWindowBase::WXReservedWindow3(void*) { return NULL; }

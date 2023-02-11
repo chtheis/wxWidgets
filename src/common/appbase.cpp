@@ -256,6 +256,11 @@ wxEventLoopBase *wxAppConsoleBase::CreateMainLoop()
 
 void wxAppConsoleBase::CleanUp()
 {
+#if wxUSE_CONFIG
+    // Delete the global wxConfig object, if any, and reset it.
+    delete wxConfigBase::Set(NULL);
+#endif // wxUSE_CONFIG
+
     wxDELETE(m_mainLoop);
 }
 
@@ -309,9 +314,8 @@ int wxAppConsoleBase::OnExit()
     DeletePendingObjects();
 
 #if wxUSE_CONFIG
-    // delete the config object if any (don't use Get() here, but Set()
-    // because Get() could create a new config object)
-    delete wxConfigBase::Set(NULL);
+    // Ensure we won't create it on demand any more if we hadn't done it yet.
+    wxConfigBase::DontCreateOnDemand();
 #endif // wxUSE_CONFIG
 
     return 0;
@@ -552,15 +556,18 @@ void wxAppConsoleBase::ProcessPendingEvents()
         // from it when they don't have any more pending events
         while (!m_handlersWithPendingEvents.IsEmpty())
         {
-            // In ProcessPendingEvents(), new handlers might be added
-            // and we can safely leave the critical section here.
-            wxLEAVE_CRIT_SECT(m_handlersWithPendingEventsLocker);
-
             // NOTE: we always call ProcessPendingEvents() on the first event handler
             //       with pending events because handlers auto-remove themselves
             //       from this list (see RemovePendingEventHandler) if they have no
             //       more pending events.
-            m_handlersWithPendingEvents[0]->ProcessPendingEvents();
+            wxEvtHandler* const handler = m_handlersWithPendingEvents[0];
+
+            // In ProcessPendingEvents(), new handlers might be added
+            // and we can safely leave the critical section here as we're not
+            // accessing m_handlersWithPendingEvents while we don't hold it.
+            wxLEAVE_CRIT_SECT(m_handlersWithPendingEventsLocker);
+
+            handler->ProcessPendingEvents();
 
             wxENTER_CRIT_SECT(m_handlersWithPendingEventsLocker);
         }
@@ -893,6 +900,9 @@ void wxAppConsoleBase::SetCLocale()
     wxSetlocale(LC_ALL, "");
 }
 
+void* wxAppConsoleBase::WXReservedApp1(void*) { return NULL; }
+void* wxAppConsoleBase::WXReservedApp2(void*) { return NULL; }
+
 // ============================================================================
 // other classes implementations
 // ============================================================================
@@ -1085,6 +1095,8 @@ wxString wxAppTraitsBase::GetAssertStackTrace()
 }
 #endif // wxUSE_STACKWALKER
 
+void* wxAppTraitsBase::WXReservedAppTraits1(void*) { return NULL; }
+void* wxAppTraitsBase::WXReservedAppTraits2(void*) { return NULL; }
 
 // ============================================================================
 // global functions implementation

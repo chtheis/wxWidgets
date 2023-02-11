@@ -89,7 +89,9 @@ wx_add_sample(layout layout.cpp layout.h)
 wx_add_sample(listctrl listtest.cpp listtest.h RES listtest.rc DEPENDS wxUSE_LISTCTRL)
 wx_add_sample(mdi mdi.cpp mdi.h RES mdi.rc DEPENDS wxUSE_MDI wxUSE_DOC_VIEW_ARCHITECTURE wxUSE_MDI_ARCHITECTURE)
 wx_add_sample(mediaplayer LIBRARIES wxmedia DEPENDS wxUSE_MEDIACTRL)
-wx_add_sample(memcheck)
+if(wxBUILD_DEBUG_LEVEL STREQUAL "Default" OR wxBUILD_DEBUG_LEVEL GREATER 0)
+    wx_add_sample(memcheck)
+endif()
 wx_add_sample(menu DEPENDS wxUSE_MENUS wxUSE_MENUBAR)
 wx_add_sample(minimal IMPORTANT)
 wx_add_sample(notebook notebook.cpp notebook.h LIBRARIES wxaui DEPENDS wxUSE_NOTEBOOK)
@@ -218,6 +220,8 @@ wx_list_add_prefix(WIDGETS_RC_FILES icons/
 wx_add_sample(widgets IMPORTANT ${SAMPLE_WIDGETS_SRC}
     DATA ${WIDGETS_RC_FILES} textctrl.cpp ../image/toucan.png:toucan.png
     )
+# includes needed by the native widget (like gtk.h)
+target_include_directories(widgets PRIVATE ${wxTOOLKIT_INCLUDE_DIRS})
 wx_add_sample(wizard DATA wiztest.svg wiztest2.svg DEPENDS wxUSE_WIZARDDLG)
 wx_add_sample(wrapsizer)
 
@@ -233,7 +237,7 @@ wx_list_add_prefix(XRC_RC_FILES rc/
     variable.xpm variable.xrc
     variants.xpm variants.xrc
     throbber.gif stop.xpm
-    wxbanner.gif
+    stop_2x.xpm wxbanner.gif
     )
 wx_add_sample(xrc
     xrcdemo.cpp

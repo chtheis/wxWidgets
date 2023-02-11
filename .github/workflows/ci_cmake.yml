@@ -4,7 +4,7 @@ name: CMake builds
 on:
   push:
     branches:
-      - master
+      - 3.2
     paths-ignore:
       - '.github/ISSUE_TEMPLATE/**'
       - '.github/workflows/ci.yml'
@@ -25,7 +25,7 @@ on:
       - 'wxwidgets.props'
   pull_request:
     branches:
-      - master
+      - 3.2
     paths-ignore:
       - '.github/ISSUE_TEMPLATE/**'
       - '.github/workflows/ci.yml'
@@ -85,7 +85,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           submodules: 'recursive'
 
@@ -141,6 +141,11 @@ jobs:
             else
                 cmake --build . --target install
             fi
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
 
       - name: Testing
         if: matrix.cmake_tests != 'OFF'

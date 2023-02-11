@@ -4,7 +4,7 @@ name: MSW cross-builds
 on:
   push:
     branches:
-      - master
+      - 3.2
     paths-ignore:
       - '.github/ISSUE_TEMPLATE/**'
       - '.github/workflows/ci.yml'
@@ -12,6 +12,7 @@ on:
       - '.github/workflows/ci_mac.yml'
       - '.github/workflows/ci_msw.yml'
       - '.github/workflows/docs_update.yml'
+      - 'build/cmake/**'
       - 'build/tools/appveyor*.bat'
       - 'distrib/**'
       - 'docs/**'
@@ -25,9 +26,10 @@ on:
       - '*.md'
       - '*.yml'
       - 'wxwidgets.props'
+      - 'CMakeLists.txt'
   pull_request:
     branches:
-      - master
+      - 3.2
     paths-ignore:
       - '.github/ISSUE_TEMPLATE/**'
       - '.github/workflows/ci.yml'
@@ -35,6 +37,7 @@ on:
       - '.github/workflows/ci_mac.yml'
       - '.github/workflows/ci_msw.yml'
       - '.github/workflows/docs_update.yml'
+      - 'build/cmake/**'
       - 'build/tools/appveyor*.bat'
       - 'distrib/**'
       - 'docs/**'
@@ -48,6 +51,10 @@ on:
       - '*.md'
       - '*.yml'
       - 'wxwidgets.props'
+      - 'CMakeLists.txt'
+
+permissions:
+  contents: read
 
 jobs:
   msw-cross-build:
@@ -126,12 +133,12 @@ jobs:
           echo "wxTEST_RUNNER=${winerun}" >> $GITHUB_ENV
 
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           submodules: 'recursive'
 
       - name: Install CCache
-        uses: hendrikmuhs/ccache-action@v1.2.1
+        uses: hendrikmuhs/ccache-action@v1.2.3
         with:
           key: ${{ matrix.name }}
 
@@ -236,7 +243,7 @@ jobs:
           # Wine WinHTTP implementations seems buggy, there are many errors.
           excluded_tests+=('~[webrequest]')
 
-          $wxTEST_RUNNER ./test "${excluded_tests[@]}"
+          $wxTEST_RUNNER ./test.exe "${excluded_tests[@]}"
 
       - name: Run GUI tests
         working-directory: tests
@@ -265,4 +272,4 @@ jobs:
           excluded_gui_tests+=('~Window::PositioningBeyondShortLimit')
           excluded_gui_tests+=('~XRC::LoadURL')
 
-          $wxTEST_RUNNER ./test_gui "${excluded_gui_tests[@]}"
+          $wxTEST_RUNNER ./test_gui.exe "${excluded_gui_tests[@]}"

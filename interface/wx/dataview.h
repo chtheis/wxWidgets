@@ -15,8 +15,7 @@
     All other models derive from it and must implement its pure virtual functions
     in order to define a complete data model. In detail, you need to override
     wxDataViewModel::IsContainer, wxDataViewModel::GetParent, wxDataViewModel::GetChildren,
-    wxDataViewModel::GetColumnCount, wxDataViewModel::GetColumnType and
-    wxDataViewModel::GetValue in order to define the data model which acts as an
+    and wxDataViewModel::GetValue in order to define the data model which acts as an
     interface between your actual data and the wxDataViewCtrl.
 
     Note that wxDataViewModel does not define the position or index of any item
@@ -245,19 +244,6 @@ public:
     */
     virtual unsigned int GetChildren(const wxDataViewItem& item,
                                      wxDataViewItemArray& children) const = 0;
-
-    /**
-        Override this to indicate the number of columns in the model.
-    */
-    virtual unsigned int GetColumnCount() const = 0;
-
-    /**
-        Override this to indicate what type of data is stored in the
-        column specified by @a col.
-
-        This should return a string indicating the type of data as reported by wxVariant.
-    */
-    virtual wxString GetColumnType(unsigned int col) const = 0;
 
     /**
         Override this to indicate which wxDataViewItem representing the parent
@@ -820,14 +806,14 @@ public:
 class wxDataViewItem
 {
 public:
-    //@{
+    ///@{
     /**
         Constructor.
     */
     wxDataViewItem();
     wxDataViewItem(const wxDataViewItem& item);
     explicit wxDataViewItem(void* id);
-    //@}
+    ///@}
 
     /**
         Returns the ID.
@@ -991,8 +977,6 @@ wxEventType wxEVT_DATAVIEW_ITEM_DROP;
            Process a @c wxEVT_DATAVIEW_COLUMN_HEADER_CLICK event.
     @event{EVT_DATAVIEW_COLUMN_HEADER_RIGHT_CLICK(id, func)}
            Process a @c wxEVT_DATAVIEW_COLUMN_HEADER_RIGHT_CLICK event.
-           Notice that currently this event is not generated in the native macOS
-           versions of the control.
     @event{EVT_DATAVIEW_COLUMN_SORTED(id, func)}
            Process a @c wxEVT_DATAVIEW_COLUMN_SORTED event.
     @event{EVT_DATAVIEW_COLUMN_REORDERED(id, func)}
@@ -1094,7 +1078,7 @@ public:
     */
     virtual bool InsertColumn(unsigned int pos, wxDataViewColumn* col);
 
-    //@{
+    ///@{
     /**
         Appends a column for rendering a bitmap. Returns the wxDataViewColumn
         created in the function or @NULL on failure.
@@ -1111,9 +1095,9 @@ public:
                                          int width = -1,
                                          wxAlignment align = wxALIGN_CENTER,
                                          int flags = wxDATAVIEW_COL_RESIZABLE);
-    //@}
+    ///@}
 
-    //@{
+    ///@{
     /**
         Prepends a column for rendering a bitmap. Returns the wxDataViewColumn
         created in the function or @NULL on failure.
@@ -1130,9 +1114,9 @@ public:
                                          int width = -1,
                                          wxAlignment align = wxALIGN_CENTER,
                                          int flags = wxDATAVIEW_COL_RESIZABLE);
-    //@}
+    ///@}
 
-    //@{
+    ///@{
     /**
         Appends a column for rendering a date. Returns the wxDataViewColumn
         created in the function or @NULL on failure.
@@ -1152,9 +1136,9 @@ public:
                                        int width = -1,
                                        wxAlignment align = wxALIGN_NOT,
                                        int flags = wxDATAVIEW_COL_RESIZABLE);
-    //@}
+    ///@}
 
-    //@{
+    ///@{
     /**
         Prepends a column for rendering a date. Returns the wxDataViewColumn
         created in the function or @NULL on failure.
@@ -1174,9 +1158,9 @@ public:
                                        int width = -1,
                                        wxAlignment align = wxALIGN_NOT,
                                        int flags = wxDATAVIEW_COL_RESIZABLE);
-    //@}
+    ///@}
 
-    //@{
+    ///@{
     /**
         Appends a column for rendering text with an icon. Returns the wxDataViewColumn
         created in the function or @NULL on failure.
@@ -1197,9 +1181,9 @@ public:
                                            int width = -1,
                                            wxAlignment align = wxALIGN_NOT,
                                            int flags = wxDATAVIEW_COL_RESIZABLE);
-    //@}
+    ///@}
 
-    //@{
+    ///@{
     /**
         Prepends a column for rendering text with an icon. Returns the wxDataViewColumn
         created in the function or @NULL on failure.
@@ -1220,9 +1204,9 @@ public:
                                            int width = -1,
                                            wxAlignment align = wxALIGN_NOT,
                                            int flags = wxDATAVIEW_COL_RESIZABLE);
-    //@}
+    ///@}
 
-    //@{
+    ///@{
     /**
         Appends a column for rendering a progress indicator. Returns the
         wxDataViewColumn created in the function or @NULL on failure.
@@ -1242,9 +1226,9 @@ public:
                                            int width = 80,
                                            wxAlignment align = wxALIGN_CENTER,
                                            int flags = wxDATAVIEW_COL_RESIZABLE);
-    //@}
+    ///@}
 
-    //@{
+    ///@{
     /**
         Prepends a column for rendering a progress indicator. Returns the
         wxDataViewColumn created in the function or @NULL on failure.
@@ -1264,9 +1248,9 @@ public:
                                            int width = 80,
                                            wxAlignment align = wxALIGN_CENTER,
                                            int flags = wxDATAVIEW_COL_RESIZABLE);
-    //@}
+    ///@}
 
-    //@{
+    ///@{
     /**
         Appends a column for rendering text. Returns the wxDataViewColumn
         created in the function or @NULL on failure.
@@ -1286,9 +1270,9 @@ public:
                                        int width = -1,
                                        wxAlignment align = wxALIGN_NOT,
                                        int flags = wxDATAVIEW_COL_RESIZABLE);
-    //@}
+    ///@}
 
-    //@{
+    ///@{
     /**
         Prepends a column for rendering text. Returns the wxDataViewColumn
         created in the function or @NULL on failure.
@@ -1308,9 +1292,9 @@ public:
                                        int width = -1,
                                        wxAlignment align = wxALIGN_NOT,
                                        int flags = wxDATAVIEW_COL_RESIZABLE);
-    //@}
+    ///@}
 
-    //@{
+    ///@{
     /**
         Appends a column for rendering a toggle. Returns the wxDataViewColumn
         created in the function or @NULL on failure.
@@ -1330,9 +1314,9 @@ public:
                                          int width = 30,
                                          wxAlignment align = wxALIGN_CENTER,
                                          int flags = wxDATAVIEW_COL_RESIZABLE);
-    //@}
+    ///@}
 
-    //@{
+    ///@{
     /**
         Prepends a column for rendering a toggle. Returns the wxDataViewColumn
         created in the function or @NULL on failure.
@@ -1352,7 +1336,7 @@ public:
                                          int width = 30,
                                          wxAlignment align = wxALIGN_CENTER,
                                          int flags = wxDATAVIEW_COL_RESIZABLE);
-    //@}
+    ///@}
 
     /**
         Associates a wxDataViewModel with the control.
@@ -1981,6 +1965,15 @@ class wxDataViewRenderer : public wxObject
 public:
     /**
         Constructor.
+
+        The @a varianttype parameter is the main type of wxVariant objects
+        supported by this renderer, i.e. those that can be passed to its
+        SetValue(), e.g. "string" for wxDataViewTextRenderer. The value of this
+        parameter is returned by GetVariantType().
+
+        When deriving a custom renderer, either an existing variant type or a
+        new custom one can be used, see wxVariant documentation for more
+        details.
     */
     wxDataViewRenderer(const wxString& varianttype,
                        wxDataViewCellMode mode = wxDATAVIEW_CELL_INERT,
@@ -2061,8 +2054,26 @@ public:
 
     /**
         Returns a string with the type of the wxVariant supported by this renderer.
+
+        Note that a renderer may support more than one variant type, in which
+        case it needs to override IsCompatibleVariantType() to return @a true
+        for all types it supports. But by default only the type returned by
+        this function is supported.
     */
     wxString GetVariantType() const;
+
+    /**
+        Check if the given variant type is compatible with the type expected by
+        this renderer.
+
+        The base class implementation just compares @a variantType with the
+        value returned by GetVariantType(), but this function can be overridden
+        to accept other types that can be converted to the type needed by the
+        renderer.
+
+        @since 3.1.7
+     */
+    virtual bool IsCompatibleVariantType(const wxString& variantType) const;
 
     /**
         Sets the alignment of the renderer's content.
@@ -2717,7 +2728,12 @@ protected:
 /**
     @class wxDataViewBitmapRenderer
 
-    This class is used by wxDataViewCtrl to render bitmap controls.
+    This class is used by wxDataViewCtrl to render bitmaps.
+
+    This renderer accepts wxVariant objects storing wxBitmap, wxIcon or
+    wxBitmapBundle inside them, with the latter being preferred as it allows
+    the renderer to automatically select the bitmap of the best matching size
+    depending on the current DPI.
 
     @library{wxcore}
     @category{dvc}
@@ -2727,6 +2743,11 @@ class wxDataViewBitmapRenderer : public wxDataViewRenderer
 public:
     /**
         Returns the wxVariant type used with this renderer.
+
+        Note that the value returned by this function has changed from
+        "wxBitmap" to "wxBitmapBundle" in wxWidgets 3.1.7, however the exact
+        value shouldn't matter, as it is only supposed to be used as the value
+        for the first constructor argument.
 
         @since 3.1.0
      */
@@ -2815,7 +2836,7 @@ public:
         @param flags
             One or more flags of the ::wxDataViewColumnFlags enumeration.
     */
-    wxDataViewColumn(const wxBitmap& bitmap,
+    wxDataViewColumn(const wxBitmapBundle& bitmap,
                      wxDataViewRenderer* renderer,
                      unsigned int model_column,
                      int width = wxDVC_DEFAULT_WIDTH,
@@ -2911,13 +2932,13 @@ public:
            const wxSize& size = wxDefaultSize, long style = wxDV_ROW_LINES,
            const wxValidator& validator = wxDefaultValidator );
 
-    //@{
+    ///@{
     /**
         Returns the store.
     */
     wxDataViewListStore *GetStore();
     const wxDataViewListStore *GetStore() const;
-    //@}
+    ///@}
 
     /**
         Returns the position of given @e item or wxNOT_FOUND if it's
@@ -2934,7 +2955,7 @@ public:
      */
     wxDataViewItem RowToItem(int row) const;
 
-    //@{
+    ///@{
     /**
         @name Selection handling functions
      */
@@ -2975,12 +2996,12 @@ public:
      */
     bool IsRowSelected(unsigned row) const;
 
-    //@}
+    ///@}
 
     /**
         @name Column management functions
     */
-    //@{
+    ///@{
 
     /**
         Appends a column to the control and additionally appends a
@@ -3063,13 +3084,13 @@ public:
     */
     void PrependColumn( wxDataViewColumn *column, const wxString &varianttype );
 
-    //@}
+    ///@}
 
 
     /**
         @name Item management functions
     */
-    //@{
+    ///@{
 
     /**
         Appends an item (i.e.\ a row) to the control.
@@ -3179,7 +3200,7 @@ public:
     */
     void SetItemData(const wxDataViewItem& item, wxUIntPtr data);
 
-    //@}
+    ///@}
 };
 
 
@@ -3319,13 +3340,13 @@ public:
     wxDataViewItem GetNthChild(const wxDataViewItem& parent,
                                unsigned int pos) const;
 
-    //@{
+    ///@{
     /**
         Returns the store.
     */
     wxDataViewTreeStore* GetStore();
     const wxDataViewTreeStore* GetStore() const;
-    //@}
+    ///@}
 
     /**
         Calls the same method from wxDataViewTreeStore but uses
@@ -3513,16 +3534,6 @@ public:
         @since 2.9.4
     */
     wxUIntPtr GetItemData(const wxDataViewItem& item) const;
-
-    /**
-        Overridden from wxDataViewModel
-    */
-    virtual unsigned int GetColumnCount() const;
-
-    /**
-        Overridden from wxDataViewModel
-    */
-    virtual wxString GetColumnType( unsigned int col ) const;
 
     /**
         Sets the client data associated with the item.
@@ -3713,14 +3724,14 @@ public:
 class wxDataViewIconText : public wxObject
 {
 public:
-    //@{
+    ///@{
     /**
         Constructor.
     */
     wxDataViewIconText(const wxString& text = wxEmptyString,
                        const wxBitmapBundle& bitmap = wxBitmapBundle());
     wxDataViewIconText(const wxDataViewIconText& other);
-    //@}
+    ///@}
 
     /**
         Gets the associated image.

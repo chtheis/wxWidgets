@@ -227,6 +227,7 @@ int          g_lastButtonNumber = 0;
 
 #ifdef __WXGTK3__
 static GList* gs_sizeRevalidateList;
+static GSList* gs_setSizeRequestList;
 #endif
 wxRecursionGuardFlag g_inSizeAllocate = 0;
 
@@ -1065,7 +1066,9 @@ wxTranslateGTKKeyEventToWx(wxKeyEvent& event,
 #ifdef HAVE_X11_XKBLIB_H
                 KeySym keysymNormalized = XkbKeycodeToKeysym(dpy, keycode, 0, 0);
 #else
+                wxGCC_WARNING_SUPPRESS(deprecated-declarations)
                 KeySym keysymNormalized = XKeycodeToKeysym(dpy, keycode, 0);
+                wxGCC_WARNING_RESTORE()
 #endif
 
                 // use the normalized, i.e. lower register, keysym if we've
@@ -2349,6 +2352,23 @@ static void frame_clock_layout(GdkFrameClock*, wxWindow* win)
 static void frame_clock_layout_after(GdkFrameClock*, wxWindowGTK* win)
 {
     win->GTKSendSizeEventIfNeeded();
+
+    if (gs_setSizeRequestList)
+    {
+        for (GSList* p = gs_setSizeRequestList; p; p = p->next)
+        {
+            if (p->data == NULL)
+                continue;
+
+            wxWindowGTK* w = static_cast<wxWindowGTK*>(p->data);
+            g_object_remove_weak_pointer(G_OBJECT(w->m_widget), &p->data);
+            GtkAllocation a;
+            gtk_widget_get_allocation(w->m_widget, &a);
+            gtk_widget_set_size_request(w->m_widget, a.width, a.height);
+        }
+        g_slist_free(gs_setSizeRequestList);
+        gs_setSizeRequestList = NULL;
+    }
 }
 #endif // GTK_CHECK_VERSION(3,8,0)
 
@@ -3842,7 +3862,6 @@ void wxWindowGTK::DoMoveWindow(int x, int y, int width, int height)
         }
     }
 
-    gtk_widget_set_size_request(m_widget, width, height);
 
 #ifdef __WXGTK3__
     // With GTK3, gtk_widget_queue_resize() is ignored while a size-allocate
@@ -3863,8 +3882,25 @@ void wxWindowGTK::DoMoveWindow(int x, int y, int width, int height)
             GtkAllocation a = { x, y, width, height };
             gtk_widget_size_allocate(m_widget, &a);
         }
+#if GTK_CHECK_VERSION(3,8,0)
+        if (wx_is_at_least_gtk3(8))
+        {
+            // Defer gtk_widget_set_size_request(), as doing it now
+            // causes GTK's sizing state to become inconsistent
+            gs_setSizeRequestList = g_slist_prepend(gs_setSizeRequestList, this);
+            g_object_add_weak_pointer(G_OBJECT(m_widget), &gs_setSizeRequestList->data);
+        }
+        else
+#endif
+        {
+            gtk_widget_set_size_request(m_widget, width, height);
+        }
     }
+    else
 #endif // __WXGTK3__
+    {
+        gtk_widget_set_size_request(m_widget, width, height);
+    }
 }
 
 void wxWindowGTK::ConstrainSize()
@@ -5075,6 +5111,9 @@ void wxWindowGTK::WarpPointer( int x, int y )
         None,
         GDK_WINDOW_XID(gdk_screen_get_root_window(screen)),
         0, 0, 0, 0, x, y);
+#else
+    wxUnusedVar(display);
+    wxUnusedVar(screen);
 #endif
 #endif
 }
@@ -5689,18 +5728,20 @@ void wxWindowGTK::GTKApplyWidgetStyle(bool forceStyle)
 
         if (isFg || isBg)
         {
-            const bool isGTK3_20 = wx_is_at_least_gtk3(20);
             // Selection may be invisible, so add textview selection colors.
             // This is specifically for wxTextCtrl, but may be useful for other
             // controls, and seems to do no harm to apply to all.
             const wxColour fg_sel(wxSystemSettings::GetColour(wxSYS_COLOUR_HIGHLIGHTTEXT));
             const wxColour bg_sel(wxSystemSettings::GetColour(wxSYS_COLOUR_HIGHLIGHT));
-            g_string_append_printf(css, "%s{color:%s;background:%s}",
-                isGTK3_20 ? "selection" : "*:selected",
-                wxGtkString(gdk_rgba_to_string(fg_sel)).c_str(),
-                wxGtkString(gdk_rgba_to_string(bg_sel)).c_str());
+            wxGtkString fg_sel_string(gdk_rgba_to_string(fg_sel));
+            wxGtkString bg_sel_string(gdk_rgba_to_string(bg_sel));
+            g_string_append_printf(css,
+                "selection{color:%s;background:%s}"
+                "*:selected{color:%s;background:%s}",
+                fg_sel_string.c_str(), bg_sel_string.c_str(),
+                fg_sel_string.c_str(), bg_sel_string.c_str());
 
-            if (isFg && isGTK3_20)
+            if (isFg && wx_is_at_least_gtk3(20))
             {
                 g_string_append_printf(css, "*{caret-color:%s}",
                     wxGtkString(gdk_rgba_to_string(fg)).c_str());
@@ -5918,7 +5959,23 @@ bool wxWindowGTK::DoPopupMenu( wxMenu *menu, int x, int y )
     }
 
     menu->m_popupShown = true;
-    gtk_menu_popup(
+#if GTK_CHECK_VERSION(3,22,0)
+    GdkWindow* window = gtk_widget_get_window(m_wxwindow ? m_wxwindow : m_widget);
+    if (wxGTKImpl::IsWayland(window) && wx_is_at_least_gtk3(22))
+    {
+        if (x == -1 && y == -1)
+            gtk_menu_popup_at_pointer(GTK_MENU(menu->m_menu), NULL);
+        else
+        {
+            const GdkRectangle rect = { x, y, 1, 1 };
+            gtk_menu_popup_at_rect(GTK_MENU(menu->m_menu),
+                window, &rect, GDK_GRAVITY_NORTH_WEST, GDK_GRAVITY_NORTH_WEST, NULL);
+        }
+    }
+    else
+#endif // GTK_CHECK_VERSION(3,22,0)
+    {
+        gtk_menu_popup(
                   GTK_MENU(menu->m_menu),
                   NULL,           // parent menu shell
                   NULL,           // parent menu item
@@ -5927,6 +5984,7 @@ bool wxWindowGTK::DoPopupMenu( wxMenu *menu, int x, int y )
                   0,                            // button used to activate it
                   gtk_get_current_event_time()
                 );
+    }
 
     // it is possible for gtk_menu_popup() to fail
     if (!gtk_widget_get_visible(GTK_WIDGET(menu->m_menu)))

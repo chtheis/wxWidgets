@@ -11,6 +11,7 @@ on:
     - '.github/workflows/ci_msw.yml'
     - '.github/workflows/ci_msw_cross.yml'
     - '.github/workflows/docs_update.yml'
+    - 'build/cmake/**'
     - 'build/tools/appveyor*.bat'
     - 'distrib/**'
     - 'docs/**'
@@ -31,6 +32,7 @@ on:
     - 'src/x11/**'
     - '*.md'
     - '*.yml'
+    - 'CMakeLists.txt'
     - 'wxwidgets.props'
   pull_request:
     branches: [ master ]
@@ -41,6 +43,7 @@ on:
     - '.github/workflows/ci_msw.yml'
     - '.github/workflows/ci_msw_cross.yml'
     - '.github/workflows/docs_update.yml'
+    - 'build/cmake/**'
     - 'build/tools/appveyor*.bat'
     - 'distrib/**'
     - 'docs/**'
@@ -61,13 +64,17 @@ on:
     - 'src/x11/**'
     - '*.md'
     - '*.yml'
+    - 'CMakeLists.txt'
     - 'wxwidgets.props'
+
+permissions:
+  contents: read
 
 jobs:
   build-and-test:
     defaults:
       run:
-        shell: /usr/bin/arch -arch ${{ matrix.arch }} /bin/bash -l {0}
+        shell: /usr/bin/arch -arch ${{ matrix.arch }} /bin/bash --noprofile --norc -eo pipefail {0}
 
     runs-on: ${{ matrix.runner }}
 
@@ -111,7 +118,7 @@ jobs:
 
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         submodules: recursive
 
@@ -172,7 +179,6 @@ jobs:
           wxCONFIGURE_OPTIONS="--with-macosx-sdk=$sdk_path $wxCONFIGURE_OPTIONS"
         fi
 
-        ./configure $wxCONFIGURE_OPTIONS --disable-debug_info || rc=$?
         if [ ${{ matrix.use_asan }} ]; then
           wxASAN_CFLAGS="-fsanitize=address -fno-omit-frame-pointer"
           wxASAN_CXXFLAGS=$wxASAN_CFLAGS
@@ -199,6 +205,13 @@ jobs:
         make -C tests $wxBUILD_ARGS failtest
         make -k -C tests $wxBUILD_ARGS "CXXFLAGS=$wxMAKEFILE_CXXFLAGS" "LDFLAGS=$wxMAKEFILE_LDFLAGS"
 
+    - name: Setup Python
+      # actions/setup-python broken on self-hosted https://github.com/actions/setup-python/issues/108
+      if: matrix.runner != 'self-hosted'
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
     - name: Testing
       if: matrix.skip_testing != true
       working-directory: tests
@@ -223,7 +236,7 @@ jobs:
         # used by std::vector<>::insert().
         export ASAN_OPTIONS='fast_unwind_on_malloc=0 detect_container_overflow=0'
         # Exclude tests that are currently known to fail
-        wx_tests_selection='~[valnum] ~wxPersistTLW ~wxPersistDVC ~wxTopLevel::Show ~wxFont::Weight ~wxFont::NativeFontInfo ~WebView ~RadioButton::Single ~RadioButton::Focus ~wxHtmlPrintout::Pagination ~wxTextCtrl::GetBestSize ~TextCtrlTestCase ~ClippingBoxTestCase::wxClientDC ~wxExecute::RedirectUTF8 ~Ellipsization::NormalCase ~SpinCtrl::* ~SpinCtrlDouble::* ~NotebookTestCase ~SettingsTestCase ~XRC::LoadURL ~Window::Show ~ModalDialogsTestCase ~Button::Click ~Button::Disabled ~wxDVC::GetItemRect ~wxDVC::AppendTextColumn ~Grid::KeyboardSelection ~Grid::CellClick ~Grid::ReorderedColumnsCellClick ~Grid::CellSelect ~wxStyledTextCtrl::AutoComp ~EvtLoopTestCase ~EventPropagationTestCase'
+        wx_tests_selection='~[.] ~[valnum] ~wxPersistTLW ~wxPersistDVC ~wxTopLevel::Show ~wxFont::Weight ~wxFont::NativeFontInfo ~WebView ~RadioButton::Single ~RadioButton::Focus ~wxHtmlPrintout::Pagination ~wxTextCtrl::GetBestSize ~TextCtrlTestCase ~ClippingBoxTestCase::wxClientDC ~wxExecute::RedirectUTF8 ~Ellipsization::NormalCase ~SpinCtrl::* ~SpinCtrlDouble::* ~NotebookTestCase ~SettingsTestCase ~Window::Show ~ModalDialogsTestCase ~Button::Click ~Button::Disabled ~wxDVC::GetItemRect ~wxDVC::AppendTextColumn ~Grid::KeyboardSelection ~Grid::CellClick ~Grid::ReorderedColumnsCellClick ~Grid::CellSelect ~wxStyledTextCtrl::AutoComp ~EvtLoopTestCase ~EventPropagationTestCase'
         ./test_gui $wx_tests_selection
 
     - name: Building samples

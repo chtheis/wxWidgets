@@ -14,7 +14,7 @@ dnl ---------------------------------------------------------------------------
 dnl initialization
 dnl ---------------------------------------------------------------------------
 
-AC_INIT([wxWidgets], [3.1.6], [wx-dev@googlegroups.com])
+AC_INIT([wxWidgets], [3.2.2], [wx-dev@googlegroups.com])
 
 dnl the file passed to AC_CONFIG_SRCDIR should be specific to our package
 AC_CONFIG_SRCDIR([wx-config.in])
@@ -39,8 +39,8 @@ dnl
 dnl wx_release_number += 1
 
 wx_major_version_number=3
-wx_minor_version_number=1
-wx_release_number=6
+wx_minor_version_number=2
+wx_release_number=2
 wx_subrelease_number=0
 
 WX_RELEASE=$wx_major_version_number.$wx_minor_version_number
@@ -354,6 +354,7 @@ DEFAULT_wxUSE_HOTKEY=auto
 DEFAULT_wxUSE_MEDIACTRL=auto
 DEFAULT_wxUSE_METAFILE=auto
 DEFAULT_wxUSE_OPENGL=auto
+DEFAULT_wxUSE_WEBVIEW_EDGE=no
 
 dnl Mac/Cocoa users need to enable building universal binaries explicitly
 DEFAULT_wxUSE_UNIVERSAL_BINARY=no
@@ -556,6 +557,7 @@ WX_ARG_WITH(gnomevfs,      [  --with-gnomevfs         use GNOME VFS for associat
 WX_ARG_WITH(libnotify,     [  --with-libnotify        use libnotify for notifications], wxUSE_LIBNOTIFY)
 WX_ARG_WITH(opengl,        [  --with-opengl           use OpenGL (or Mesa)], wxUSE_OPENGL)
 WX_ARG_WITH(xtest,         [  --with-xtest            use XTest extension], wxUSE_XTEST)
+WX_ARG_WITH(nanosvg,       [  --with-nanosvg          use NanoSVG for rasterizing SVG], wxUSE_NANOSVG)
 
 if test "$wxUSE_GTK" = 1 -o "$wxUSE_QT" = 1 -o "$wxUSE_X11" = 1; then
     wx_needs_cairo_for_gc=1
@@ -1062,9 +1064,11 @@ dnl ---------------------------------------------------------------------------
 WX_ARG_FEATURE(dccache,     [  --enable-dccache        cache temporary wxDC objects (Win32 only)], wxUSE_DC_CACHEING)
 WX_ARG_FEATURE(ps-in-msw,   [  --enable-ps-in-msw      use PS printing in wxMSW (Win32 only)], wxUSE_POSTSCRIPT_ARCHITECTURE_IN_MSW)
 WX_ARG_FEATURE(ownerdrawn,  [  --enable-ownerdrawn     use owner drawn controls (Win32 and OS/2 only)], wxUSE_OWNER_DRAWN)
+WX_ARG_FEATURE(taskbarbutton,[  --enable-taskbarbutton  enable wxTaskBarButton (Win32 only)], wxUSE_TASKBARBUTTON)
 WX_ARG_FEATURE(uxtheme,     [  --enable-uxtheme        enable support for Windows XP themed look (Win32 only)], wxUSE_UXTHEME)
 WX_ARG_FEATURE(wxdib,       [  --enable-wxdib          use wxDIB class (Win32 only)], wxUSE_DIB)
 WX_ARG_FEATURE(webviewie,   [  --enable-webviewie      use wxWebView IE backend (Win32 only)], wxUSE_WEBVIEW_IE)
+WX_ARG_FEATURE(webviewedge, [  --enable-webviewedge    use wxWebView Edge backend (Win32 only)], wxUSE_WEBVIEW_EDGE)
 
 dnl this one is not really MSW-specific but it exists mainly to be turned off
 dnl under MSW, it should be off by default on the other platforms
@@ -2379,21 +2383,42 @@ fi dnl End of pre-C++11 only checks section
 dnl Find pkg-config outside of any conditional.  Done before any PKG_* call.
 PKG_PROG_PKG_CONFIG
 
-dnl When cross-compiling, don't use .pc files on the build system, they are at
-dnl best useless and can be harmful (e.g. they may define options inappropriate
-dnl for the cross-build, resulting in the failure of all the subsequent tests).
+dnl When cross-compiling for another system from Linux, don't use .pc files on
+dnl the build system, they are at best useless and can be harmful (e.g. they
+dnl may define options inappropriate for the cross-build, resulting in the
+dnl failure of all the subsequent tests).
 if test "$build" != "$host"; then
-    dnl pkg.m4 forbids the use of PKG_XXX, so undo it here to avoid autoconf
-    dnl errors.
-    m4_pattern_allow([PKG_CONFIG_LIBDIR])
+    dnl Assume that using pkg-config does work when cross-compiling to another
+    dnl Linux system, e.g. when targeting ARM Linux from x86_64 system.
+    case "${host}" in
+        *-linux-*)
+            ;;
 
-    dnl If pkg-config libdir is already defined, we suppose that they know what
-    dnl they're doing and leave it alone, but if not, set it to a path in which
-    dnl no .pc files will be found.
-    if test -z "$PKG_CONFIG_LIBDIR"; then
-        PKG_CONFIG_LIBDIR=/dev/null
-        export PKG_CONFIG_LIBDIR
-    fi
+        * )
+            dnl But otherwise only do it if a host-specific pkg-config is
+            dnl available as using the build system one is not going to work.
+            case "$PKG_CONFIG" in
+                */$host-pkg-config )
+                    ;;
+
+                * )
+                    AC_MSG_WARN([Not using native pkg-config when cross-compiling.])
+
+                    dnl pkg.m4 forbids the use of PKG_XXX, so undo it here to avoid autoconf
+                    dnl errors.
+                    m4_pattern_allow([PKG_CONFIG_LIBDIR])
+
+                    dnl If pkg-config libdir is already defined, we suppose that they know what
+                    dnl they're doing and leave it alone, but if not, set it to a path in which
+                    dnl no .pc files will be found.
+                    if test -z "$PKG_CONFIG_LIBDIR"; then
+                        PKG_CONFIG_LIBDIR=/dev/null
+                        export PKG_CONFIG_LIBDIR
+                    fi
+                    ;;
+            esac
+            ;;
+    esac
 fi
 
 dnl ---------------------------------------------------------------------------
@@ -2510,6 +2535,7 @@ if test "$wxUSE_ZLIB" != "no" ; then
                 [
                     #include <zlib.h>
                     #include <stdio.h>
+                    #include <stdlib.h>
 
                     int main()
                     {
@@ -2595,6 +2621,7 @@ if test "$wxUSE_LIBPNG" != "no" ; then
                 [
                     #include <png.h>
                     #include <stdio.h>
+                    #include <stdlib.h>
 
                     int main()
                     {
@@ -2957,6 +2984,14 @@ else
 fi
 
 dnl ------------------------------------------------------------------------
+dnl Check for NanoSVG libraries
+dnl ------------------------------------------------------------------------
+
+if test "$wxUSE_NANOSVG" = "yes"; then
+    AC_DEFINE(wxUSE_NANOSVG)
+fi
+
+dnl ------------------------------------------------------------------------
 dnl XML and wxrc
 dnl ------------------------------------------------------------------------
 if test "$wxUSE_XML" != "yes"; then
@@ -2964,7 +2999,6 @@ if test "$wxUSE_XML" != "yes"; then
     USE_XML=0
 else
     USE_XML=1
-    echo "${HOST_PREFIX}install_name_tool \${changes} \${2}/wxrc-${WX_RELEASE}" >> change-install-names
 fi
 
 
@@ -4027,7 +4061,7 @@ if test "$wxUSE_SHARED" = "yes"; then
             DYLIB_RPATH_POSTLINK="${HOST_PREFIX}install_name_tool -id \$@ \$@"
             cat <<EOF >change-install-names
 #!/bin/sh
-libnames=\`cd \${1} ; ls -1 | grep '\.[[0-9]][[0-9]]*\.dylib\$'\`
+libnames=\`cd lib ; ls -1 | grep '\.[[0-9]][[0-9]]*\.dylib\$'\`
 changes=''
 for dep in \${libnames} ; do
     changes="\${changes} -change \${4}/\${dep} \${3}/\${dep}"
@@ -4035,6 +4069,10 @@ done
 for i in \${libnames} ; do
     ${HOST_PREFIX}install_name_tool \${changes} -id \${3}/\${i} \${1}/\${i}
 done
+
+if test -f "\${2}/wxrc-${WX_RELEASE}" ; then
+    ${HOST_PREFIX}install_name_tool \${changes} \${2}/wxrc-${WX_RELEASE}
+fi
 EOF
             chmod +x change-install-names
             DYLIB_RPATH_INSTALL="\$(wx_top_builddir)/change-install-names \${DESTDIR}\${libdir} \${DESTDIR}\${bindir} \${libdir} \$(wx_top_builddir)/lib"
@@ -4272,25 +4310,15 @@ AC_CHECK_TYPES([mbstate_t],
                [],
                [#include <wchar.h>])
 
-dnl check for vsnprintf() -- a safe version of vsprintf())
-dnl
-dnl the trouble here is that on some systems (e.g. HP-UX 10) this function is
-dnl present in libc but not in the system headers and so AC_CHECK_FUNCS (which,
-dnl stupidly, provides a dummy function declaration inside its extension)
-dnl succeeds, even with C++ compiler, but the compilation of wxWidgets fails
-dnl
-dnl so we first check if the function is in the library
-dnl
-dnl FIXME: replace this mess with WX_CHECK_FUNCS()
-AC_CHECK_FUNCS(snprintf vsnprintf vsscanf)
+dnl Check for vararg functions that should be available in stdio.h
+WX_CHECK_FUNCS(snprintf vsnprintf vsscanf)
 
 AC_LANG_PUSH(C++)
-if test "$ac_cv_func_vsnprintf" = "yes"; then
-    dnl yes it is -- now check if it is in the headers
-    AC_CACHE_CHECK([for vsnprintf declaration], wx_cv_func_vsnprintf_decl,
+if test "$wx_cv_func_vsnprintf" = "yes"; then
+    dnl we know there is a vsnprintf declaration, but some old headers
+    dnl may have one taking a "char *" format instead of "const char *"
+    AC_CACHE_CHECK([if vsnprintf declaration is broken], wx_cv_func_broken_vsnprintf_decl,
         [
-            dnl our troubles are not over: HP-UX 11 prototypes vsnprintf() as
-            dnl taking "char *" and not "const char *" so test for this too
             AC_TRY_COMPILE(
                 [
                     #include <stdio.h>
@@ -4299,80 +4327,21 @@ if test "$ac_cv_func_vsnprintf" = "yes"; then
                 [
                     char *buf;
                     va_list ap;
-                    vsnprintf(buf, 10u, "%s", ap);
+                    const char *fmt = "%s";
+                    vsnprintf(buf, 10u, fmt, ap);
                 ],
-                wx_cv_func_vsnprintf_decl=yes,
-                wx_cv_func_vsnprintf_decl=no
+                wx_cv_func_broken_vsnprintf_decl=no,
+                wx_cv_func_broken_vsnprintf_decl=yes
             )
         ]
     )
 
-    if test "$wx_cv_func_vsnprintf_decl" = "yes"; then
-        AC_DEFINE(HAVE_VSNPRINTF_DECL)
-
-        dnl we know there is a vsnprintf declaration, but some old headers
-        dnl may have one taking a "char *" format instead of "const char *"
-        AC_CACHE_CHECK([if vsnprintf declaration is broken], wx_cv_func_broken_vsnprintf_decl,
-            [
-                AC_TRY_COMPILE(
-                    [
-                        #include <stdio.h>
-                        #include <stdarg.h>
-                        #ifdef __MSL__
-                        #if __MSL__ >= 0x6000
-                        namespace std {}
-                        using namespace std;
-                        #endif
-                        #endif
-                    ],
-                    [
-                        char *buf;
-                        va_list ap;
-                        const char *fmt = "%s";
-                        vsnprintf(buf, 10u, fmt, ap);
-                    ],
-                    wx_cv_func_broken_vsnprintf_decl=no,
-                    wx_cv_func_broken_vsnprintf_decl=yes
-                )
-            ]
-        )
-
-        if test "$wx_cv_func_broken_vsnprintf_decl" = "yes"; then
-            AC_DEFINE(HAVE_BROKEN_VSNPRINTF_DECL)
-        fi
+    if test "$wx_cv_func_broken_vsnprintf_decl" = "yes"; then
+        AC_DEFINE(HAVE_BROKEN_VSNPRINTF_DECL)
     fi
 fi
 
-dnl the same as above but for snprintf() now: it's not present in at least AIX
-dnl 4.2 headers
-if test "$ac_cv_func_snprintf" = "yes"; then
-    AC_CACHE_CHECK([for snprintf declaration], wx_cv_func_snprintf_decl,
-        [
-            AC_TRY_COMPILE(
-                [
-                    #include <stdio.h>
-                    #include <stdarg.h>
-                    #ifdef __MSL__
-                    #if __MSL__ >= 0x6000
-                    namespace std {}
-                    using namespace std;
-                    #endif
-                    #endif
-                ],
-                [
-                    char *buf;
-                    snprintf(buf, 10u, "%s", "wx");
-                ],
-                wx_cv_func_snprintf_decl=yes,
-                wx_cv_func_snprintf_decl=no
-            )
-        ]
-    )
-
-    if test "$wx_cv_func_snprintf_decl" = "yes"; then
-        AC_DEFINE(HAVE_SNPRINTF_DECL)
-    fi
-
+if test "$wx_cv_func_snprintf" = "yes"; then
     if test "$wxUSE_PRINTF_POS_PARAMS" = "yes"; then
 
         dnl check if snprintf() has support for positional arguments
@@ -4412,66 +4381,30 @@ define HAVE_UNIX98_PRINTF as 1 in setup.h if it is available.])
     fi
 fi
 
-dnl the same as above but for vsscanf() now: it's not present in at least
-dnl Solaris 9 headers for gcc-3.4 (due to fixinclude's processing of stdio.h)
-if test "$ac_cv_func_vsscanf" = "yes"; then
-    AC_CACHE_CHECK([for vsscanf declaration], wx_cv_func_vsscanf_decl,
+if test "$wx_cv_func_vsscanf" = "yes"; then
+    dnl we know there is a vsscanf() declaration, but it can be broken by
+    dnl declaring vsscanf() as taking a non-const first argument (this
+    dnl happens at least under HP-UX 11.31, see #15638).
+    AC_CACHE_CHECK([if vsscanf() declaration is broken], wx_cv_func_broken_vsscanf_decl,
         [
             AC_TRY_COMPILE(
                 [
                     #include <stdio.h>
                     #include <stdarg.h>
-                    #ifdef __MSL__
-                    #if __MSL__ >= 0x6000
-                    namespace std {}
-                    using namespace std;
-                    #endif
-                    #endif
                 ],
                 [
-                    char *buf;
+                    const char *buf;
                     va_list args;
                     vsscanf(buf, "%s", args);
                 ],
-                wx_cv_func_vsscanf_decl=yes,
-                wx_cv_func_vsscanf_decl=no
+                wx_cv_func_broken_vsscanf_decl=no,
+                wx_cv_func_broken_vsscanf_decl=yes
             )
         ]
     )
 
-    if test "$wx_cv_func_vsscanf_decl" = "yes"; then
-        AC_DEFINE(HAVE_VSSCANF_DECL)
-
-        dnl we know there is a vsscanf() declaration, but it can be broken by
-        dnl declaring vsscanf() as taking a non-const first argument (this
-        dnl happens at least under HP-UX 11.31, see #15638).
-        AC_CACHE_CHECK([if vsscanf() declaration is broken], wx_cv_func_broken_vsscanf_decl,
-            [
-                AC_TRY_COMPILE(
-                    [
-                        #include <stdio.h>
-                        #include <stdarg.h>
-                        #ifdef __MSL__
-                        #if __MSL__ >= 0x6000
-                        namespace std {}
-                        using namespace std;
-                        #endif
-                        #endif
-                    ],
-                    [
-                        const char *buf;
-                        va_list args;
-                        vsscanf(buf, "%s", args);
-                    ],
-                    wx_cv_func_broken_vsscanf_decl=no,
-                    wx_cv_func_broken_vsscanf_decl=yes
-                )
-            ]
-        )
-
-        if test "$wx_cv_func_broken_vsscanf_decl" = "yes"; then
-            AC_DEFINE(HAVE_BROKEN_VSSCANF_DECL)
-        fi
+    if test "$wx_cv_func_broken_vsscanf_decl" = "yes"; then
+        AC_DEFINE(HAVE_BROKEN_VSSCANF_DECL)
     fi
 fi
 AC_LANG_POP()
@@ -4958,7 +4891,7 @@ if test "$TOOLKIT" != "MSW"; then
 
           *-*-irix* )
                 dnl gcc under IRIX doesn't seem to like -pthread, but it
-                dnl doesn't give an error for it neither, just a warning
+                dnl doesn't give an error for it either, just a warning
                 dnl message -- but this is still very annoying
                 if test "x$GCC" = "xyes"; then
                     THREAD_OPTS=""
@@ -5713,7 +5646,9 @@ if test "$wxUSE_FSWATCHER" = "yes"; then
                 [whether inotify is usable],
                 wx_cv_inotify_usable,
                 AC_LINK_IFELSE(
-                    [AC_LANG_SOURCE([int main() { return inotify_init(); }])],
+                    [AC_LANG_SOURCE([
+                       #include <sys/inotify.h>
+                       int main() { return inotify_init(); }])],
                     [wx_cv_inotify_usable=yes],
                     [wx_cv_inotify_usable=no]
                 )
@@ -7619,6 +7554,10 @@ if test "$wxUSE_WEBVIEW" = "yes"; then
             wxUSE_WEBVIEW="yes"
             AC_DEFINE(wxUSE_WEBVIEW_IE)
         fi
+        if test "$wxUSE_WEBVIEW_EDGE" = "yes"; then
+            wxUSE_WEBVIEW="yes"
+            AC_DEFINE(wxUSE_WEBVIEW_EDGE)
+        fi
     fi
 fi
 
@@ -7761,6 +7700,10 @@ if test "$wxUSE_MSW" = 1 ; then
 
     if test "$wxUSE_POSTSCRIPT_ARCHITECTURE_IN_MSW" = "yes"; then
         AC_DEFINE(wxUSE_POSTSCRIPT_ARCHITECTURE_IN_MSW)
+    fi
+
+    if test "$wxUSE_TASKBARBUTTON" = "yes"; then
+        AC_DEFINE(wxUSE_TASKBARBUTTON)
     fi
 
     if test "$wxUSE_UXTHEME" = "yes"; then

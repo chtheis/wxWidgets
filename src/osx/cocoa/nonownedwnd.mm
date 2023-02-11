@@ -367,8 +367,8 @@ extern int wxOSXGetIdFromSelector(SEL action );
         wxMenuItemImpl* impl = [nsMenuItem implementation];
         if ( impl )
         {
-            wxMenuItem* menuitem = impl->GetWXPeer();
-            return menuitem->GetMenu()->HandleCommandProcess(menuitem);
+            if ( wxMenuItem* menuitem = impl->GetWXPeer() )
+                return menuitem->GetMenu()->HandleCommandProcess(menuitem);
         }
     }
     // otherwise feed back command into common menubar
@@ -597,6 +597,22 @@ extern int wxOSXGetIdFromSelector(SEL action );
         }
         return editor;
     } 
+#if wxUSE_SEARCHCTRL
+    else if ([anObject isKindOfClass:[wxNSSearchField class]])
+    {
+        wxNSSearchField* sf = (wxNSSearchField*) anObject;
+        wxNSTextFieldEditor* editor = [sf fieldEditor];
+        if ( editor == nil )
+        {
+            editor = [[wxNSTextFieldEditor alloc] init];
+            [editor setFieldEditor:YES];
+            [editor setTextField:sf];
+            [sf setFieldEditor:editor];
+            [editor release];
+        }
+        return editor;
+    }
+#endif // wxUSE_SEARCHCTRL
     else if ([anObject isKindOfClass:[wxNSComboBox class]])
     {
         wxNSComboBox * cb = (wxNSComboBox*) anObject;
@@ -844,16 +860,21 @@ long style, long extraStyle, const wxString& WXUNUSED(name) )
     if ( ( style & wxPOPUP_WINDOW ) )
         level = NSPopUpMenuWindowLevel;
 
-    NSRect r = wxToNSRect( NULL, wxRect( pos, size) );
+    NSRect frameRect = wxToNSRect( NULL, wxRect( pos, size) );
 
-    r = [NSWindow contentRectForFrameRect:r styleMask:windowstyle];
+    NSRect contentRect = [NSWindow contentRectForFrameRect:frameRect styleMask:windowstyle];
 
-    [m_macWindow initWithContentRect:r
+    [m_macWindow initWithContentRect:contentRect
         styleMask:windowstyle
         backing:NSBackingStoreBuffered
         defer:NO
         ];
-    
+
+    if (!NSEqualRects([m_macWindow frame], frameRect))
+    {
+        [m_macWindow setFrame:frameRect display:NO];
+    }
+
     // if we just have a title bar with no buttons needed, hide them
     if ( (windowstyle & NSTitledWindowMask) && 
         !(style & wxCLOSE_BOX) && !(style & wxMAXIMIZE_BOX) && !(style & wxMINIMIZE_BOX) )
@@ -936,6 +957,7 @@ void wxNonOwnedWindowCocoaImpl::SetUpForModalParent()
 void wxNonOwnedWindowCocoaImpl::ShowWithoutActivating()
 {
     SetUpForModalParent();
+    [m_macWindow setHidesOnDeactivate:YES];
     [m_macWindow orderFront:nil];
     [[m_macWindow contentView] setNeedsDisplay: YES];
 }
@@ -956,7 +978,10 @@ bool wxNonOwnedWindowCocoaImpl::Show(bool show)
                 {
                     NSWindow* parentNSWindow = [parentView window];
                     if ( parentNSWindow ) {
-                        [parentNSWindow addChildWindow:m_macWindow ordered:NSWindowAbove];
+                        // we used to call [parentNSWindow addChildWindow:m_macWindow here
+                        // but this lead to problems with Spaces (modal windows disappeared
+                        // when dragged to a different space)
+
                         // If the parent is modal, windows with wxFRAME_FLOAT_ON_PARENT style need
                         // to be in NSModalPanelWindowLevel and not NSFloatingWindowLevel to stay
                         // above the parent.
