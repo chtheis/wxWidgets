@@ -188,6 +188,10 @@ void IntlTestCase::DateTimeFmtFrench()
     static const char *FRENCH_DATE_FMT = "%d.%m.%Y";
     static const char *FRENCH_LONG_DATE_FMT = "%a %e %b %Y";
     static const char *FRENCH_DATE_TIME_FMT = "%a %e %b %X %Y";
+#elif defined(__CYGWIN__)
+    static const char *FRENCH_DATE_FMT = "%d/%m/%Y";
+    static const char *FRENCH_LONG_DATE_FMT = "%a %e %b %Y";
+    static const char *FRENCH_DATE_TIME_FMT = "%a %e %b %Y %H:%M:%S";
 #else
     static const char *FRENCH_DATE_FMT = "%d/%m/%Y";
     static const char *FRENCH_LONG_DATE_FMT = "%A %d %B %Y";
@@ -231,6 +235,39 @@ void IntlTestCase::IsAvailable()
     wxLocale::IsAvailable(wxLANGUAGE_ENGLISH);
 
     CPPUNIT_ASSERT_EQUAL( origLocale, setlocale(LC_ALL, NULL) );
+}
+
+TEST_CASE("wxTranslations::Available", "[translations]")
+{
+    // We currently have translations for French and Japanese in this test
+    // directory, check that loading those succeeds but loading others doesn't.
+    wxFileTranslationsLoader::AddCatalogLookupPathPrefix("./intl");
+
+    const wxString domain("internat");
+
+    wxTranslations trans;
+
+    SECTION("All")
+    {
+        wxArrayString available = trans.GetAvailableTranslations(domain);
+        REQUIRE( available.size() == 2 );
+
+        available.Sort();
+        CHECK( available[0] == "fr" );
+        CHECK( available[1] == "ja" );
+    }
+
+    SECTION("French")
+    {
+        trans.SetLanguage(wxLANGUAGE_FRENCH);
+        CHECK( trans.AddAvailableCatalog(domain) );
+    }
+
+    SECTION("Italian")
+    {
+        trans.SetLanguage(wxLANGUAGE_ITALIAN);
+        CHECK_FALSE( trans.AddAvailableCatalog(domain) );
+    }
 }
 
 // The test may fail in ANSI builds because of unsupported encoding, but we
@@ -439,7 +476,15 @@ TEST_CASE("wxUILocale::FromTag", "[.]")
     REQUIRE( !locId.IsEmpty() );
 
     const wxUILocale loc(locId);
-    WARN("Locale \"" << tag << "\" supported: " << loc.IsSupported() );
+    WARN("Locale \"" << tag << "\":\n"
+         "language:\t" << locId.GetLanguage() << "\n"
+         "region:\t" << locId.GetRegion() << "\n"
+         "script:\t" << locId.GetScript() << "\n"
+         "charset:\t" << locId.GetCharset() << "\n"
+         "modifier:\t" << locId.GetModifier() << "\n"
+         "extension:\t" << locId.GetExtension() << "\n"
+         "sort order:\t" << locId.GetSortorder() << "\n"
+         "supported:\t" << (loc.IsSupported() ? "yes" : "no"));
 }
 
 namespace
@@ -474,10 +519,12 @@ wxString GetLocaleDesc(const char* when)
     else
         decsep = wxString::Format("UNKNOWN (%s)", decsep);
 
-    return wxString::Format("%s\ncurrent locale:\t%s (decimal separator: %s)",
+    return wxString::Format("%s\ncurrent locale:\t%s "
+                            "(decimal separator: %s, date format=%s)",
                             when,
                             locid.IsEmpty() ? wxString("NONE") : locid.GetTag(),
-                            decsep);
+                            decsep,
+                            curloc.GetInfo(wxLOCALE_SHORT_DATE_FMT));
 }
 
 } // anonymous namespace

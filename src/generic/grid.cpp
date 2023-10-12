@@ -2929,6 +2929,9 @@ wxGrid::SetTable(wxGridTableBase *table,
             HideCellEditControl();
             m_cellEditCtrlEnabled = false;
 
+            // Don't hold on to attributes cached from the old table
+            ClearAttrCache();
+
             m_table->SetView(0);
             if( m_ownTable )
                 delete m_table;
@@ -2971,6 +2974,8 @@ wxGrid::SetTable(wxGridTableBase *table,
     }
 
     InvalidateBestSize();
+
+    UpdateCurrentCellOnRedim();
 
     return m_created;
 }

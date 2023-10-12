@@ -114,6 +114,33 @@ bool gs_changedPolicy = false;
 #endif // #if wxUSE_DYNLIB_CLASS
 
 /*
+    This function removes any remaining mouse messages from the input queue in
+    order to prevent them from being passed to controls positioned underneath
+    the wxFileDialog after it has been destroyed, see #10924.
+*/
+void DrainMouseMessages()
+{
+    // Note that we have to use this struct as PeekMessage() wouldn't remove
+    // the messages from the input queue, even with PM_REMOVE, if we pass it a
+    // null pointer.
+    MSG msg;
+
+    // This loop is used just to ensure that we don't loop indefinitely in case
+    // there is something generating an endless stream of mouse messages in the
+    // system (1000 is an arbitrary but "sufficiently large" number), the real
+    // loop termination condition is inside it.
+    for ( int i = 0; i < 1000; ++i )
+    {
+        if ( !::PeekMessage(&msg, NULL, WM_MOUSEFIRST, WM_MOUSELAST,
+                            PM_REMOVE | PM_QS_INPUT) )
+        {
+            // No more mouse messages left.
+            break;
+        }
+    }
+}
+
+/*
 Since Windows 7 by default (callback) exceptions aren't swallowed anymore
 with native x64 applications. Exceptions can occur in a file dialog when
 using the hook procedure in combination with third-party utilities.
@@ -1227,12 +1254,39 @@ int wxFileDialog::ShowModal()
     wxWindowDisabler disableOthers(this, parent);
 
     /*
-        We need to use the old style dialog in order to use a hook function
-        which allows us to use custom controls in it but, if possible, we
-        prefer to use the new style one instead.
+        We prefer to use the new style dialog if possible, but have to fall
+        back on the old common dialog in a few cases.
     */
 #if wxUSE_IFILEOPENDIALOG
-    if ( !HasExtraControlCreator() )
+    bool canUseIFileDialog = true;
+
+    /*
+        We need to use the old style dialog in order to use a hook function
+        which allows us to use custom controls in it.
+     */
+    if ( HasExtraControlCreator() )
+        canUseIFileDialog = false;
+
+    /*
+        We also can't use it if we're in a multi-threaded COM apartment _and_
+        have a parent, as IFileDialog::Show() simply hangs in this case, see
+        #23578.
+     */
+    if ( hWndParent )
+    {
+        // Call this function just to check in which apartment we are: it will
+        // return S_OK if COINIT_APARTMENTTHREADED had been used for the first
+        // COM initialization and an error if not.
+        const HRESULT hr = ::CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
+
+        if ( hr == RPC_E_CHANGED_MODE )
+            canUseIFileDialog = false;
+
+        // This just undoes the call above, COM remains initialized.
+        ::CoUninitialize();
+    }
+
+    if ( canUseIFileDialog )
     {
         const int rc = ShowIFileDialog(hWndParent);
         if ( rc != wxID_NONE )
@@ -1466,6 +1520,8 @@ int wxFileDialog::ShowCommFileDialog(WXHWND hWndParent)
     DWORD errCode;
     bool success = DoShowCommFileDialog(&of, m_windowStyle, &errCode);
 
+    DrainMouseMessages();
+
     // When using a hook, our HWND was set from MSWOnInitDialogHook() called
     // above, but it's not valid any longer once the dialog was destroyed, so
     // reset it now.
@@ -1669,6 +1725,9 @@ int wxFileDialog::ShowIFileDialog(WXHWND hWndParent)
 
     // Finally do show the dialog.
     const int rc = fileDialog.Show(hWndParent, options, &m_fileNames, &m_path);
+
+    DrainMouseMessages();
+
     if ( rc == wxID_OK )
     {
         // As with the common dialog, the index is 1-based here, but don't make

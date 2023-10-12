@@ -784,7 +784,8 @@ void wxListLineData::DrawInReportMode( wxDC *dc,
                                        const wxRect& rect,
                                        const wxRect& rectHL,
                                        bool highlighted,
-                                       bool current )
+                                       bool current,
+                                       bool checked )
 {
     // TODO: later we should support setting different attributes for
     //       different columns - to do it, just add "col" argument to
@@ -805,7 +806,7 @@ void wxListLineData::DrawInReportMode( wxDC *dc,
         rr.x += MARGIN_AROUND_CHECKBOX;
 
         int flags = 0;
-        if (m_checked)
+        if (checked)
             flags |= wxCONTROL_CHECKED;
         wxRendererNative::Get().DrawCheckBox(m_owner, *dc, rr, flags);
 
@@ -1499,6 +1500,7 @@ bool wxListTextCtrlWrapper::CheckForEndEditKey(const wxKeyEvent& event)
     switch ( event.m_keyCode )
     {
         case WXK_RETURN:
+        case WXK_NUMPAD_ENTER:
             EndEdit( End_Accept );
             break;
 
@@ -1990,13 +1992,16 @@ void wxListMainWindow::RefreshAfter( size_t lineFrom )
 {
     if ( InReportView() )
     {
-        size_t visibleFrom, visibleTo;
-        GetVisibleLinesRange(&visibleFrom, &visibleTo);
+        // Note that we don't compare lineFrom with the last visible line
+        // because we refresh the entire rectangle below it anyhow, so it
+        // doesn't matter if it's bigger than it. And we must still refresh
+        // even if lineFrom is invalid because it may have been (just) deleted
+        // when we're called from DeleteItem().
+        size_t visibleFrom;
+        GetVisibleLinesRange(&visibleFrom, NULL);
 
         if ( lineFrom < visibleFrom )
             lineFrom = visibleFrom;
-        else if ( lineFrom > visibleTo )
-            return;
 
         wxRect rect;
         rect.x = 0;
@@ -2148,7 +2153,8 @@ void wxListMainWindow::OnPaint( wxPaintEvent &WXUNUSED(event) )
                                              rectLine,
                                              GetLineHighlightRect(line),
                                              IsHighlighted(line),
-                                             line == m_current );
+                                             line == m_current,
+                                             IsItemChecked(line) );
         }
 
         if ( HasFlag(wxLC_HRULES) )
@@ -3955,10 +3961,15 @@ bool wxListMainWindow::EnableCheckBoxes(bool enable)
 
 void wxListMainWindow::CheckItem(long item, bool state)
 {
-    wxListLineData *line = GetLine((size_t)item);
-    line->Check(state);
+    wxCHECK_RET( HasCheckBoxes(), "checkboxes are disabled" );
 
-    RefreshLine(item);
+    if ( !IsVirtual() )
+    {
+        wxListLineData* line = GetLine((size_t)item);
+        line->Check(state);
+
+        RefreshLine(item);
+    }
 
     SendNotify(item, state ? wxEVT_LIST_ITEM_CHECKED
         : wxEVT_LIST_ITEM_UNCHECKED);
@@ -3966,8 +3977,19 @@ void wxListMainWindow::CheckItem(long item, bool state)
 
 bool wxListMainWindow::IsItemChecked(long item) const
 {
-    wxListLineData *line = GetLine((size_t)item);
-    return line->IsChecked();
+    if ( !HasCheckBoxes() )
+        return false;
+
+    if ( !IsVirtual() )
+    {
+        wxListLineData* line = GetLine((size_t)item);
+        return line->IsChecked();
+    }
+    else
+    {
+        wxGenericListCtrl* listctrl = GetListCtrl();
+        return listctrl->OnGetItemIsChecked(item);
+    }
 }
 
 bool wxListMainWindow::IsInsideCheckBox(long item, int x, int y)
@@ -4320,6 +4342,9 @@ void wxListMainWindow::DeleteItem( long lindex )
     }
     else
     {
+        if ( m_lines[index]->IsHighlighted() )
+            UpdateSelectionCount(false);
+
         delete m_lines[index];
         m_lines.erase( m_lines.begin() + index );
     }

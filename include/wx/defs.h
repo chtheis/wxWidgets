@@ -304,6 +304,10 @@ typedef short int WXTYPE;
 #if __cplusplus >= 201103L || wxCHECK_VISUALC_VERSION(14)
     #define wxHAS_MEMBER_DEFAULT
 
+    // Rvalue references are supported since MSVS 2010, but enabling them
+    // causes compilation errors on versions before 2015
+    #define wxHAS_RVALUE_REF
+
     #define wxHAS_NOEXCEPT
     #define wxNOEXCEPT noexcept
 #else
@@ -766,7 +770,7 @@ typedef short int WXTYPE;
 /*
     Similar macros but for gcc-specific warnings.
  */
-#ifdef __GNUC__
+#if defined(__GNUC__) && !defined(__clang__)
 #   define wxGCC_ONLY_WARNING_SUPPRESS(x) wxGCC_WARNING_SUPPRESS(x)
 #   define wxGCC_ONLY_WARNING_RESTORE(x) wxGCC_WARNING_RESTORE(x)
 #else

@@ -14,7 +14,7 @@ dnl ---------------------------------------------------------------------------
 dnl initialization
 dnl ---------------------------------------------------------------------------
 
-AC_INIT([wxWidgets], [3.2.2], [wx-dev@googlegroups.com])
+AC_INIT([wxWidgets], [3.2.3], [wx-dev@googlegroups.com])
 
 dnl the file passed to AC_CONFIG_SRCDIR should be specific to our package
 AC_CONFIG_SRCDIR([wx-config.in])
@@ -40,7 +40,7 @@ dnl wx_release_number += 1
 
 wx_major_version_number=3
 wx_minor_version_number=2
-wx_release_number=2
+wx_release_number=3
 wx_subrelease_number=0
 
 WX_RELEASE=$wx_major_version_number.$wx_minor_version_number
@@ -1038,7 +1038,7 @@ WX_ARG_FEATURE(joystick,    [  --enable-joystick       use wxJoystick], wxUSE_JO
 WX_ARG_FEATURE(metafile,    [  --enable-metafile       use wxMetaFile], wxUSE_METAFILE)
 WX_ARG_FEATURE(dragimage,   [  --enable-dragimage      use wxDragImage], wxUSE_DRAGIMAGE)
 WX_ARG_FEATURE(accessibility,[  --enable-accessibility  enable accessibility support], wxUSE_ACCESSIBILITY)
-WX_ARG_FEATURE(uiactionsim,  [  --enable-uiactionsim    use wxUIActionSimulator (experimental)], wxUSE_UIACTIONSIMULATOR)
+WX_ARG_FEATURE(uiactionsim,  [  --enable-uiactionsim    use wxUIActionSimulator], wxUSE_UIACTIONSIMULATOR)
 WX_ARG_FEATURE(dctransform,  [  --enable-dctransform    use wxDC::SetTransformMatrix and related], wxUSE_DC_TRANSFORM_MATRIX)
 WX_ARG_FEATURE(webviewwebkit,[  --enable-webviewwebkit  use wxWebView WebKit backend], wxUSE_WEBVIEW_WEBKIT)
 WX_ARG_FEATURE(glcanvasegl,  [  --disable-glcanvasegl   disable wxGLCanvas EGL backend], wxUSE_GLCANVAS_EGL)
@@ -5251,13 +5251,20 @@ else
         x86_64-*-mingw* )
         ;;
         *-*-mingw32* )
-            dnl check if the compiler accepts -mthreads
+            dnl check if the compiler is gcc and accepts -mthreads (clang just
+            dnl ignores this option but it doesn't need it, so explicitly fail
+            dnl the test for it)
             AC_CACHE_CHECK([if compiler supports -mthreads],
                 wx_cv_cflags_mthread,
                 [
                     CFLAGS_OLD="$CFLAGS"
                     CFLAGS="-mthreads $CFLAGS"
-                    AC_TRY_COMPILE([], [],
+                    AC_TRY_COMPILE([],
+                        [
+#ifdef __clang__
+#error no
+#endif
+                        ],
                         wx_cv_cflags_mthread=yes,
                         wx_cv_cflags_mthread=no
                     )
@@ -5678,6 +5685,25 @@ if test "$wxUSE_FSWATCHER" = "yes"; then
         SAMPLES_SUBDIRS="$SAMPLES_SUBDIRS fswatcher"
     else
         AC_MSG_WARN([wxFileSystemWatcher won't be available on this platform])
+    fi
+fi
+
+dnl ---------------------------------------------------------------------------
+dnl xkbcommon library for key code translations in wxGTK
+dnl ---------------------------------------------------------------------------
+if test "$wxUSE_GTK" = 1; then
+    if test "$USE_WIN32" != 1 -a "$USE_DARWIN" != 1; then
+        PKG_CHECK_MODULES(XKBCOMMON, [xkbcommon],
+            [
+                CFLAGS="$XKBCOMMON_CFLAGS $CFLAGS"
+                CXXFLAGS="$XKBCOMMON_CFLAGS $CXXFLAGS"
+                GUI_TK_LIBRARY="$GUI_TK_LIBRARY $XKBCOMMON_LIBS"
+                AC_DEFINE(HAVE_XKBCOMMON)
+            ],
+            [
+                AC_MSG_WARN([libxkbcommon not found, key codes in key events may be incorrect])
+            ]
+        )
     fi
 fi
 
@@ -7503,15 +7529,27 @@ if test "$wxUSE_WEBVIEW" = "yes"; then
         if test "$wxUSE_GTK" = 1; then
             if test "$WXGTK3" = 1; then
                 PKG_CHECK_MODULES([WEBKIT],
-                                  [webkit2gtk-4.0],
+                                  [webkit2gtk-4.1],
                                   [
                                     USE_WEBVIEW_WEBKIT2=1
                                     CXXFLAGS="$CXXFLAGS $WEBKIT_CFLAGS"
                                     EXTRALIBS_WEBVIEW="$WEBKIT_LIBS"
                                   ],
                                   [
-                                    AC_MSG_WARN([webkit2gtk not found, falling back to webkitgtk])
+                                    AC_MSG_WARN([webkit2gtk-4.1 not found, falling back to webkit2gtk-4.0])
                                   ])
+                if test "$USE_WEBVIEW_WEBKIT2" = 0; then
+                    PKG_CHECK_MODULES([WEBKIT],
+                                      [webkit2gtk-4.0],
+                                      [
+                                        USE_WEBVIEW_WEBKIT2=1
+                                        CXXFLAGS="$CXXFLAGS $WEBKIT_CFLAGS"
+                                        EXTRALIBS_WEBVIEW="$WEBKIT_LIBS"
+                                      ],
+                                      [
+                                        AC_MSG_WARN([webkit2gtk-4.0 not found, falling back to webkitgtk])
+                                      ])
+                fi
             fi
             if test "$USE_WEBVIEW_WEBKIT2" = 0; then
                 webkitgtk=webkit-1.0
@@ -8560,14 +8598,16 @@ dnl Set the flags to be used for the library build itself using the flag names
 dnl used everywhere above.
 dnl
 dnl Also get rid of duplicates in the flags, which results in dramatically
-dnl shorter build logs and so is well worth it (but preserve some special
-dnl flags which are explicitly allowed to occur multiple times, as all their
-dnl occurrences must be preserved).
+dnl shorter build logs and so is well worth it.
 dedup_flags()
 {
     printf "%s " "$@" |
         awk 'BEGIN { RS=" "; ORS=" " }
-            { if ($0=="-arch" || $0=="-framework" || !seen[[$0]]++) print }'
+        {
+            if ($0=="") next
+            if ($0=="-arch" || $0=="-framework") { x=$0; next }
+            if (x!="") x=x " " $0; else x=$0; if (!seen[[x]]++) print x; x=""
+        }'
 }
 
 WX_CPPFLAGS=`dedup_flags "$CPPFLAGS"`
