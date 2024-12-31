@@ -454,8 +454,31 @@ void wxGtkStyleContext::Bg(wxColour& color, int state) const
     // If there is an image, try to get a color out of it.
     if (pattern)
     {
-        if (cairo_pattern_get_type(pattern) == CAIRO_PATTERN_TYPE_SURFACE)
+        int count;
+        switch (cairo_pattern_get_type(pattern))
         {
+        default:
+            break;
+        case CAIRO_PATTERN_TYPE_LINEAR:
+        case CAIRO_PATTERN_TYPE_RADIAL:
+            cairo_pattern_get_color_stop_count(pattern, &count);
+            if (count > 0)
+            {
+                double r, g, b, a;
+                cairo_pattern_get_color_stop_rgba(pattern, 0, NULL, &r, &g, &b, &a);
+                if (count > 1)
+                {
+                    double r2, g2, b2, a2;
+                    cairo_pattern_get_color_stop_rgba(pattern, count - 1, NULL, &r2, &g2, &b2, &a2);
+                    r = (r + r2) / 2;
+                    g = (g + g2) / 2;
+                    b = (b + b2) / 2;
+                    a = (a + a2) / 2;
+                }
+                color.Set(guchar(r * 255), guchar(g * 255), guchar(b * 255), guchar(a * 255));
+            }
+            break;
+        case CAIRO_PATTERN_TYPE_SURFACE:
             cairo_surface_t* surf;
             cairo_pattern_get_surface(pattern, &surf);
             if (cairo_surface_get_type(surf) == CAIRO_SURFACE_TYPE_IMAGE)
@@ -944,33 +967,45 @@ static GdkRectangle GetMonitorGeom(GdkWindow* window)
 }
 #endif
 
+#ifdef __WXGTK3__
+static int GetNodeWidth(wxGtkStyleContext& sc)
+{
+    int width;
+    gtk_style_context_get(sc, GTK_STATE_FLAG_NORMAL, "min-width", &width, NULL);
+    GtkBorder border;
+    gtk_style_context_get_padding(sc, GTK_STATE_FLAG_NORMAL, &border);
+    width += border.left + border.right;
+    gtk_style_context_get_border(sc, GTK_STATE_FLAG_NORMAL, &border);
+    width += border.left + border.right;
+    gtk_style_context_get_margin(sc, GTK_STATE_FLAG_NORMAL, &border);
+    width += border.left + border.right;
+
+    return width < 0 ? 0 : width;
+}
+#endif // __WXGTK3__
+
 static int GetScrollbarWidth()
 {
     int width;
 #ifdef __WXGTK3__
     if (wx_is_at_least_gtk3(20))
     {
-        GtkBorder border;
 #if GTK_CHECK_VERSION(3,10,0)
         wxGtkStyleContext sc(gtk_widget_get_scale_factor(ScrollBarWidget()));
 #else
         wxGtkStyleContext sc;
 #endif
         sc.Add(GTK_TYPE_SCROLLBAR, "scrollbar", "scrollbar", "vertical", "right", NULL);
+        width = GetNodeWidth(sc);
 
-        gtk_style_context_get_border(sc, GTK_STATE_FLAG_NORMAL, &border);
+        sc.Add("contents");
+        width += GetNodeWidth(sc);
 
-        sc.Add("contents").Add("trough").Add("slider");
+        sc.Add("trough");
+        width += GetNodeWidth(sc);
 
-        gtk_style_context_get(sc, GTK_STATE_FLAG_NORMAL, "min-width", &width, NULL);
-        width += border.left + border.right;
-
-        gtk_style_context_get_border(sc, GTK_STATE_FLAG_NORMAL, &border);
-        width += border.left + border.right;
-        gtk_style_context_get_padding(sc, GTK_STATE_FLAG_NORMAL, &border);
-        width += border.left + border.right;
-        gtk_style_context_get_margin(sc, GTK_STATE_FLAG_NORMAL, &border);
-        width += border.left + border.right;
+        sc.Add("slider");
+        width += GetNodeWidth(sc);
     }
     else
 #endif
@@ -1209,6 +1244,10 @@ bool wxSystemSettingsModule::OnInit()
     // 'gtk-application-prefer-dark-theme' property to get a dark theme.
 
     m_proxy = NULL;
+
+    // If this is not a GUI app
+    if (!g_type_class_peek(GTK_TYPE_WIDGET))
+        return true;
 
     // GTK_THEME environment variable overrides other settings
     if (getenv("GTK_THEME") == NULL)

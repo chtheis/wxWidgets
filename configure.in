@@ -14,7 +14,7 @@ dnl ---------------------------------------------------------------------------
 dnl initialization
 dnl ---------------------------------------------------------------------------
 
-AC_INIT([wxWidgets], [3.2.3], [wx-dev@googlegroups.com])
+AC_INIT([wxWidgets], [3.2.6], [wx-dev@googlegroups.com])
 
 dnl the file passed to AC_CONFIG_SRCDIR should be specific to our package
 AC_CONFIG_SRCDIR([wx-config.in])
@@ -40,7 +40,7 @@ dnl wx_release_number += 1
 
 wx_major_version_number=3
 wx_minor_version_number=2
-wx_release_number=3
+wx_release_number=6
 wx_subrelease_number=0
 
 WX_RELEASE=$wx_major_version_number.$wx_minor_version_number
@@ -4067,6 +4067,10 @@ for dep in \${libnames} ; do
     changes="\${changes} -change \${4}/\${dep} \${3}/\${dep}"
 done
 for i in \${libnames} ; do
+    if test -L \${1}/\${i}; then
+        # skip symbolic links
+        continue
+    fi
     ${HOST_PREFIX}install_name_tool \${changes} -id \${3}/\${i} \${1}/\${i}
 done
 
@@ -8816,12 +8820,7 @@ for subdir in $SUBDIRS; do
                 done
             else
                 dnl assume that everything compiles for utils &c
-                dnl any that shouldn't be built can be added to
-                dnl DISABLED_UTILS, DISABLED_DEMOS
-                disabled_var=DISABLED_`echo $subdir | tr '[[a-z]]' '[[A-Z]]'`
-                eval "disabled=\$$disabled_var"
-                disabled=/`echo X $disabled | sed 's@ @/|/@g'`/
-                makefiles=`(cd $srcdir ; find $subdir -name Makefile.in) | $EGREP -v "$disabled"`
+                makefiles=`(cd $srcdir ; find $subdir -name Makefile.in)`
             fi
         else
             dnl we build wxBase only

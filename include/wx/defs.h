@@ -306,7 +306,12 @@ typedef short int WXTYPE;
 
     // Rvalue references are supported since MSVS 2010, but enabling them
     // causes compilation errors on versions before 2015
+    //
+    // And move support in wxString is only available since 3.2.3, so don't
+    // compile it in when compatibility with older versions is requested.
+#if wxABI_VERSION >= 30203
     #define wxHAS_RVALUE_REF
+#endif
 
     #define wxHAS_NOEXCEPT
     #define wxNOEXCEPT noexcept
@@ -456,9 +461,27 @@ typedef short int WXTYPE;
             #define HAVE_TR1_UNORDERED_SET
         #endif
     #endif /* defined(__has_include) */
+#endif /* !__WX_SETUP_H__ */
 
-    #endif /* __cplusplus */
-#endif /* __WX_SETUP_H__ */
+// Allow disabling the use of std::initializer_list<> if it creates overload
+// ambiguities for the existing code by predefining wxNO_INITIALIZER_LIST and
+// also always predefine this symbol when ABI compatibility with versions
+// before support for std::initializer_list<> was added is requested.
+#if wxABI_VERSION < 30205
+    #ifndef wxNO_INITIALIZER_LIST
+        #define wxNO_INITIALIZER_LIST
+    #endif
+#endif /* wxABI_VERSION < 30205 */
+
+#if !defined(wxHAVE_INITIALIZER_LIST) && !defined(wxNO_INITIALIZER_LIST)
+    #if __cplusplus >= 201103L
+        #define wxHAVE_INITIALIZER_LIST
+    #elif wxCHECK_VISUALC_VERSION(12)
+        #define wxHAVE_INITIALIZER_LIST
+    #endif
+#endif /* !wxHAVE_INITIALIZER_LIST && !wxNO_INITIALIZER_LIST */
+
+#endif /* __cplusplus */
 
 /* provide replacement for C99 va_copy() if the compiler doesn't have it */
 
@@ -3209,14 +3232,28 @@ typedef const void* WXWidget;
 
 #if defined(__cplusplus) && (__cplusplus >= 201103L || wxCHECK_VISUALC_VERSION(14))
     #define wxMEMBER_DELETE = delete
+
+    // Note that all these macros don't require a semicolon after them because
+    // they are empty in the "#else" branch and can't be followed by a
+    // semicolon in that case.
     #define wxDECLARE_DEFAULT_COPY_CTOR(classname) \
         public:                                    \
             classname(const classname&) = default;
+
+    #define wxDECLARE_DEFAULT_COPY(classname)  \
+        wxDECLARE_DEFAULT_COPY_CTOR(classname) \
+        classname& operator=(const classname&) = default;
+
+    #define wxDECLARE_DEFAULT_COPY_AND_DEF(classname) \
+        classname() = default;                        \
+        wxDECLARE_DEFAULT_COPY(classname)
 #else
     #define wxMEMBER_DELETE
 
     // We can't do this without C++11 "= default".
     #define wxDECLARE_DEFAULT_COPY_CTOR(classname)
+    #define wxDECLARE_DEFAULT_COPY(classname)
+    #define wxDECLARE_DEFAULT_COPY_AND_DEF(classname)
 #endif
 
 #define wxDECLARE_NO_COPY_CLASS(classname)      \

@@ -27,6 +27,7 @@
 #endif
 
 #include "wx/aui/tabmdi.h"
+#include "wx/wupdlock.h"
 
 #include "wx/dcbuffer.h" // just for wxALWAYS_NATIVE_DOUBLE_BUFFER
 
@@ -1099,6 +1100,7 @@ void wxAuiTabCtrl::OnCaptureLost(wxMouseCaptureLostEvent& WXUNUSED(event))
 {
     if (m_isDragging)
     {
+        m_clickPt = wxDefaultPosition;
         m_isDragging = false;
 
         wxAuiNotebookEvent evt(wxEVT_AUINOTEBOOK_CANCEL_DRAG, m_windowId);
@@ -1116,6 +1118,7 @@ void wxAuiTabCtrl::OnLeftUp(wxMouseEvent& evt)
 
     if (m_isDragging)
     {
+        m_clickPt = wxDefaultPosition;
         m_isDragging = false;
 
         wxAuiNotebookEvent e(wxEVT_AUINOTEBOOK_END_DRAG, m_windowId);
@@ -2074,6 +2077,12 @@ bool wxAuiNotebook::DeletePage(size_t page_idx)
 // but does not destroy the window
 bool wxAuiNotebook::RemovePage(size_t page_idx)
 {
+    // Lock the window for changes to avoid flicker when
+    // removing the active page (there is a noticeable
+    // flicker from the active tab is closed and until a
+    // new one is selected) - this is noticeable on MSW
+    wxWindowUpdateLocker locker(this);
+
     // save active window pointer
     wxWindow* active_wnd = NULL;
     if (m_curPage >= 0)

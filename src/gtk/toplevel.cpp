@@ -35,18 +35,15 @@
 #include "wx/sysopt.h"
 
 #include "wx/gtk/private.h"
+#include "wx/gtk/private/wrapgdk.h"
 #include "wx/gtk/private/gtk3-compat.h"
 #include "wx/gtk/private/stylecontext.h"
 #include "wx/gtk/private/win_gtk.h"
 #include "wx/gtk/private/backend.h"
 
 #ifdef GDK_WINDOWING_X11
-    #include <gdk/gdkx.h>
     #include <X11/Xatom.h>  // XA_CARDINAL
     #include "wx/unix/utilsx11.h"
-#endif
-#ifdef GDK_WINDOWING_WAYLAND
-    #include <gdk/gdkwayland.h>
 #endif
 
 // ----------------------------------------------------------------------------
@@ -758,10 +755,7 @@ bool wxTopLevelWindowGTK::Create( wxWindow *parent,
     if (pos.IsFullySpecified())
     {
 #ifdef __WXGTK3__
-        GtkWindowPosition windowPos;
-        g_object_get(m_widget, "window-position", &windowPos, NULL);
-        if (windowPos == GTK_WIN_POS_NONE)
-            gtk_window_move(GTK_WINDOW(m_widget), m_x, m_y);
+        gtk_window_move(GTK_WINDOW(m_widget), m_x, m_y);
 #else
         gtk_widget_set_uposition( m_widget, m_x, m_y );
 #endif
