@@ -1,4 +1,4 @@
-wxWidgets 3.2.6 Release Notes
+wxWidgets 3.2.12 Release Notes
 =============================
 
 Welcome to the new stable release of wxWidgets, a free and open source
@@ -16,7 +16,7 @@ more about wxWidgets at:
 
 Documentation is available online at:
 
-* https://docs.wxwidgets.org/3.2.6/
+* https://docs.wxwidgets.org/3.2.12/
 
 wxWidgets sources and binaries for the selected platforms are available for
 download from:
@@ -25,38 +25,46 @@ download from:
 
 or, for a more more permanent but less convenient to use link, from
 
-* https://github.com/wxWidgets/wxWidgets/releases/tag/v3.2.6/
+* https://github.com/wxWidgets/wxWidgets/releases/tag/v3.2.12/
 
-Please see https://docs.wxwidgets.org/3.2.6/overview_install.html for full
+Please see https://docs.wxwidgets.org/3.2.12/overview_install.html for full
 installation instructions.
 
 
 
-Changes since 3.2.5
--------------------
+Changes since 3.2.11
+--------------------
 
-This release contains multiple bug fixes, including some regressions, as well
-as improvements to the CMake build system. Some of the most important changes:
+This is mostly a bug fix release, the only important addition is support for
+wxTaskBarIcon under Wayland (#26845). Other changes are:
 
-- Fix resource leak in wxBitmapBundle in some circumstances (#24703).
-- Fix crash when using static wx libraries in a Windows DLL (#24730).
-- Fix possible crash during drag-and-drop in wxGTK (#24677).
-- Fix wxDatePickerCtrl being unusable in some locales in wxGTK (#24533).
-- Fix regression in focus handling under macOS 14+ (#24605, #24667).
-- Fix regression in wxTranslations introduced in 3.2.3 (#24297).
+- Update Unicode mapping tables to current versions (#26700).
+- Add wxPATH_RMDIR_PARENTS flag to wxFileName::Rmdir().
+- Handle mouse capture loss when using wxContextHelp (#21534).
+- Always recognize common file types in wxHTML (#20967).
+- Respect background colour when printing in wxHTML (#20652).
+- Fix handling of image map coordinates in wxHTML (#3163).
+- Don't show modal HTML help window for not found topic (#3219).
+- Recognize "Dstrok" as an entity in wxHTML (#3996).
+- Fix XRC unknown-control size hints after attaching (#2726).
+- Fix handling spacing in wxGridBagSizer (#3105).
+- Fix handling TGA files with invalid size (#26760).
+- Fix buffer overflow with invalid cached help books (#26765).
+- Fix possible hang in wxWebRequestCURL after connection error (#27041).
+- Fix using SetBitmap() on wxMenuItem created without a bitmap in wxGTK (#26771).
+- Fix memory leak with using custom handlers in WebKit-based wxWebView (#26784).
+- Use string passed to wxApp::SetClassName() as Wayland app-id in wxGTK (#24668).
+- Fix wrong refresh in wxStaticBitmap::SetBitmap() in wxMSW (#26730).
+- Fix drawing of 1x1 rectangles in wxMSW (#3096).
+- Account for the column header in wxMSW wxListCtrl::HitTest() (#22239).
+- Fix system menu corruption when Explorer is restarted (#26799).
+- Fix crash toggling a toolbar item without a bitmap in wxOSX (#26763).
 
-Other changes include:
-
-- High DPI fixes for wxBitmapComboBox (#24563), wxDataViewCtrl (#24648),
-  wxNotebook (#24606), wxPropertyGrid (#24607), wxWizard (#24743).
-- Improve wxSlider appearance under macOS (#24532, #24539).
-- Correctly use current keyboard layout in key events in wxGTK (#24772).
-- Fix handling of ligatures in wxStyledTextCtrl in wxGTK (#13168).
-
+Upgrading to the new version is recommended for all existing 3.2 users.
 
 Please see the full change log for more details:
 
-https://raw.githubusercontent.com/wxWidgets/wxWidgets/v3.2.6/docs/changes.txt
+https://raw.githubusercontent.com/wxWidgets/wxWidgets/v3.2.12/docs/changes.txt
 
 This release is API and ABI-compatible with the previous 3.2.x releases, so
 the existing applications don't even need to be rebuilt to profit from all the
@@ -71,7 +79,7 @@ Supported Platforms
 This version of wxWidgets supports the following primary platforms:
 
 * Windows XP, Vista, 7, 8, 10 and 11 (32/64 bits).
-* Most Unix variants using the GTK toolkit (version 2.6 or newer)
+* Most Unix variants using the GTK toolkit (version 2.6 or newer or 3.x)
 * macOS (10.10 or newer) using Cocoa (x86-64 or ARM).
 
 There is some support for the following platforms:
@@ -156,4 +164,4 @@ developed by its users and your contributions to it are always welcome!
 
 Have fun!
 
-The wxWidgets Team, September 2024
+The wxWidgets Team, March 2026

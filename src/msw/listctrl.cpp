@@ -1920,6 +1920,16 @@ wxListCtrl::HitTest(const wxPoint& point, int& flags, long *ptrSubItem) const
     hitTestInfo.pt.x = (int) point.x;
     hitTestInfo.pt.y = (int) point.y;
 
+    // Firstly, check if the point is even on the list control itself since
+    // ListView_(Sub)ItemHitTest returns the topmost visible item when the
+    // point is over the column header control.
+    if ( ::ChildWindowFromPointEx(GetHwnd(), hitTestInfo.pt, CWP_SKIPINVISIBLE)
+           != GetHwnd() )
+    {
+        flags = wxLIST_HITTEST_NOWHERE;
+        return wxNOT_FOUND;
+    }
+
     long item;
 #ifdef LVM_SUBITEMHITTEST
     if ( ptrSubItem )
@@ -2002,6 +2012,16 @@ long wxListCtrl::InsertItem(const wxListItem& info)
 
     LV_ITEM item;
     wxConvertToMSWListItem(this, info, item);
+
+    // When inserting items into a control with an image list, the first image
+    // is used by default, so we need to explicitly specify that we don't want
+    // any image if it wasn't set.
+    if ( !(item.mask & LVIF_IMAGE) )
+    {
+        item.iImage = I_IMAGENONE;
+        item.mask |= LVIF_IMAGE;
+    }
+
     item.mask &= ~LVIF_PARAM;
 
     // check whether we need to allocate our internal data

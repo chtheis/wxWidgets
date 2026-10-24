@@ -38,6 +38,7 @@
 #include "wx/gtk/private/gtk3-compat.h"
 #include "wx/gtk/private/image.h"
 #include "wx/gtk/private/list.h"
+#include "wx/gtk/private/object.h"
 #include "wx/gtk/private/treeview.h"
 #include "wx/gtk/private/value.h"
 using namespace wxGTKImpl;
@@ -1557,6 +1558,15 @@ gtk_wx_cell_renderer_get_size (GtkCellRenderer *renderer,
 
     wxSize size = cell->GetSize();
 
+    // Somehow returning 0 or negative width prevents the returned height from
+    // being taken into account at all, even if we return strictly positive
+    // width from later calls to GetSize(), meaning that it's enough to return
+    // 0 from it once to completely break the layout for the entire lifetime of
+    // the control.
+    //
+    // As this is completely unexpected, forcefully prevent this from happening
+    size.IncTo(wxSize(1, 1));
+
     wxDataViewCtrl * const ctrl = cell->GetOwner()->GetOwner();
 
     // Uniform row height, if specified, overrides the value returned by the
@@ -2958,7 +2968,7 @@ wxDataViewChoiceRenderer::wxDataViewChoiceRenderer( const wxArrayString &choices
     , m_choices(choices)
 {
     m_renderer = (GtkCellRenderer*) gtk_cell_renderer_combo_new();
-    GtkListStore *store = gtk_list_store_new( 1, G_TYPE_STRING );
+    wxGtkObject<GtkListStore> store(gtk_list_store_new( 1, G_TYPE_STRING ));
     for (size_t n = 0; n < m_choices.GetCount(); n++)
     {
         gtk_list_store_insert_with_values(
@@ -2967,7 +2977,7 @@ wxDataViewChoiceRenderer::wxDataViewChoiceRenderer( const wxArrayString &choices
     }
 
     g_object_set (m_renderer,
-            "model", store,
+            "model", store.get(),
             "text-column", 0,
             "has-entry", FALSE,
             NULL);

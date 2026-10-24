@@ -49,6 +49,8 @@
 #include "wx/private/threadinfo.h"
 #include "wx/uilocale.h"
 
+#include "wx/private/elfversion.h"
+
 #ifdef __WINDOWS__
     #include "wx/dynlib.h"
     #include "wx/scopedarray.h"
@@ -133,6 +135,11 @@ wxString GetPreferredUILanguage(const wxArrayString& available)
           j != preferred.end();
           ++j )
     {
+        // try exact match first:
+        if (available.Index(*j, /*bCase=*/false) != wxNOT_FOUND)
+            return *j;
+
+        // try looking up as a POSIX locale:
         wxLocaleIdent localeId = wxLocaleIdent::FromTag(*j);
         wxString lang = localeId.GetTag(wxLOCALE_TAGTYPE_POSIX);
 
@@ -957,7 +964,7 @@ private:
         const wxMsgTableEntry * const ent = pTable + n;
 
         // this check could fail for a corrupt message catalog
-        size_t32 ofsString = Swap(ent->ofsString);
+        wxULongLong_t ofsString = Swap(ent->ofsString);
         if ( ofsString + Swap(ent->nLen) > m_data.length())
         {
             return NULL;
@@ -1218,9 +1225,9 @@ bool wxMsgCatalogFile::FillHash(wxStringToStringHashMap& hash,
 // wxMsgCatalog class
 // ----------------------------------------------------------------------------
 
-#if !wxUSE_UNICODE
 wxMsgCatalog::~wxMsgCatalog()
 {
+#if !wxUSE_UNICODE
     if ( m_conv )
     {
         if ( wxConvUI == m_conv )
@@ -1232,8 +1239,8 @@ wxMsgCatalog::~wxMsgCatalog()
 
         delete m_conv;
     }
-}
 #endif // !wxUSE_UNICODE
+}
 
 /* static */
 wxMsgCatalog *wxMsgCatalog::CreateFromFile(const wxString& filename,
@@ -1415,11 +1422,13 @@ bool wxTranslations::AddCatalog(const wxString& domain,
 }
 #endif // !wxUSE_UNICODE
 
+wxELF_VERSION_COMPAT("_ZN14wxTranslations19AddAvailableCatalogERK8wxString", "3.2.3")
 bool wxTranslations::AddAvailableCatalog(const wxString& domain)
 {
     return AddAvailableCatalog(domain, wxLANGUAGE_ENGLISH_US);
 }
 
+wxELF_VERSION_COMPAT("_ZN14wxTranslations19AddAvailableCatalogERK8wxString10wxLanguage", "3.2.6")
 bool wxTranslations::AddAvailableCatalog(const wxString& domain, wxLanguage msgIdLanguage)
 {
     return DoAddCatalog(domain, msgIdLanguage) == Translations_Found;
@@ -1558,6 +1567,7 @@ wxString wxTranslations::GetBestTranslation(const wxString& domain,
     return lang;
 }
 
+wxELF_VERSION_COMPAT("_ZN14wxTranslations27GetBestAvailableTranslationERK8wxString", "3.2.3")
 wxString wxTranslations::GetBestAvailableTranslation(const wxString& domain)
 {
     // Determine the best language from the ones with actual translation file:

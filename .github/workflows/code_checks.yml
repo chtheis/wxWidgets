@@ -14,12 +14,12 @@ permissions:
 
 jobs:
   check-unix:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     name: Check Spelling
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install codespell
         run: |
@@ -31,12 +31,12 @@ jobs:
 
 
   check-whitespace:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     name: Check Whitespace
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Check for trailing whitespace and TABs
         run: |
@@ -50,7 +50,9 @@ jobs:
                 ':!configure' \
                 ':!descrip.mms' \
                 ':!install-sh' \
+                ':!build/cmake/modules/cotire.cmake' \
                 ':!docs/doxygen/doxygen-awesome-css/*' \
+                ':!misc/unictabl/mappings/*.TXT' \
                 ':!samples/widgets/widgets.bkl' \
                 ':!**/*akefile*' \
                 ':!**/*.pbxproj' \
@@ -61,12 +63,12 @@ jobs:
 
 
   check-mixed-eol:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     name: Check Mixed EOL
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install dos2unix
         run: |
@@ -77,12 +79,12 @@ jobs:
             ./misc/scripts/check_mixed_eol.sh
 
   check-cxx-style:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     name: Check C++ Style
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Check for C++11 keywords
         run: |

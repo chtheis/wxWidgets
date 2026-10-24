@@ -301,6 +301,9 @@ public:
     wxDataViewCtrl *GetOwner() const
         { return static_cast<wxDataViewCtrl *>(GetParent()); }
 
+    virtual wxWindow *GetMainWindowOfCompositeControl() wxOVERRIDE
+        { return GetOwner(); }
+
     // Add/Remove additional column to sorting columns
     void ToggleSortByColumn(int column)
     {
@@ -773,6 +776,9 @@ public:
 
     wxDataViewModel* GetModel() { return GetOwner()->GetModel(); }
     const wxDataViewModel* GetModel() const { return GetOwner()->GetModel(); }
+
+    virtual wxWindow *GetMainWindowOfCompositeControl() wxOVERRIDE
+        { return GetOwner(); }
 
 #if wxUSE_DRAG_AND_DROP
     wxBitmap CreateItemBitmap( unsigned int row, int &indent );
@@ -2501,7 +2507,7 @@ wxBitmap wxDataViewMainWindow::CreateItemBitmap( unsigned int row, int &indent )
         if ( cell->PrepareForItem(model, item, column->GetModelColumn()) )
         {
             wxRect item_rect(x, 0, width, height);
-            item_rect.Deflate(PADDING_RIGHTLEFT, 0);
+            item_rect.Deflate(FromDIP(PADDING_RIGHTLEFT), 0);
 
             // dc.SetClippingRegion( item_rect );
             cell->WXCallRender(item_rect, &dc, 0);
@@ -2926,7 +2932,7 @@ void wxDataViewMainWindow::OnPaint( wxPaintEvent &WXUNUSED(event) )
             }
 
             wxRect item_rect = cell_rect;
-            item_rect.Deflate(PADDING_RIGHTLEFT, 0);
+            item_rect.Deflate(FromDIP(PADDING_RIGHTLEFT), 0);
 
             // account for the tree indent (harmless if we're not indented)
             item_rect.x += indent;
@@ -4115,6 +4121,12 @@ void wxDataViewMainWindow::Collapse(unsigned int row)
         if ( m_selection.OnItemsDeleted(row + 1, countDeletedRows) )
         {
             SendSelectionChangedEvent(GetItemByRow(row));
+
+            // The event handler for wxEVT_DATAVIEW_SELECTION_CHANGED could
+            // have called Collapse() itself, in which case the node would be
+            // already closed and we shouldn't try to close it again.
+            if ( !node->IsOpen() )
+                return;
         }
 
         node->ToggleOpen(this);
@@ -6144,7 +6156,7 @@ unsigned int wxDataViewCtrl::GetBestColumnWidth(int idx) const
 
     int max_width = calculator.GetMaxWidth();
     if ( max_width > 0 )
-        max_width += 2 * PADDING_RIGHTLEFT;
+        max_width += 2 * FromDIP(PADDING_RIGHTLEFT);
 
     const_cast<wxDataViewCtrl*>(this)->m_colsBestWidths[idx].width = max_width;
     return max_width;
