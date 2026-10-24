@@ -6,6 +6,7 @@ on:
     branches:
       - 3.2
     paths-ignore:
+      - '.circleci/**'
       - '.github/ISSUE_TEMPLATE/**'
       - '.github/workflows/ci.yml'
       - '.github/workflows/ci_cmake.yml'
@@ -31,6 +32,7 @@ on:
     branches:
       - 3.2
     paths-ignore:
+      - '.circleci/**'
       - '.github/ISSUE_TEMPLATE/**'
       - '.github/workflows/ci.yml'
       - '.github/workflows/ci_cmake.yml'
@@ -62,16 +64,20 @@ jobs:
     # versions of MinGW and Wine and is simpler to test with locally than the
     # bespoke container used by GitHub Actions by default.
     runs-on: ubuntu-latest
-    container: debian:testing-slim
+    container: debian:${{ matrix.debian_release }}-slim
     name: ${{ matrix.name }}
     strategy:
       fail-fast: false
       matrix:
         include:
           - name: wxMSW 64 bits
+            debian_release: stable
             configure_flags: --enable-stl --disable-compat30
           - name: wxMSW 32 bits
+            # Testing doesn't have 32 bit support any more.
+            debian_release: stable
             triplet: i686-w64-mingw32
+            configure_flags: --enable-compat28 --disable-unicode
     env:
       wxCONFIGURE_FLAGS: ${{ matrix.configure_flags }}
 
@@ -111,15 +117,13 @@ jobs:
 
           case "${HOST_TRIPLET}" in
             x86_64-w64-mingw32)
-              packages="$packages g++-mingw-w64-x86-64 wine64 xvfb"
-              winerun=wine64
+              packages="$packages g++-mingw-w64-x86-64 wine wine64 xvfb"
               ;;
 
             i686-w64-mingw32)
               sudo dpkg --add-architecture i386
               sudo apt-get -q -o=Dpkg::Use-Pty=0 update
               packages="$packages g++-mingw-w64-i686 wine32 libgl1:i386 xvfb:i386"
-              winerun=wine
               ;;
 
             *)
@@ -130,15 +134,15 @@ jobs:
 
           sudo DEBIAN_FRONTEND=noninteractive apt-get -q -o=Dpkg::Use-Pty=0 -y install $packages
 
-          echo "wxTEST_RUNNER=${winerun}" >> $GITHUB_ENV
+          echo "wxTEST_RUNNER=wine" >> $GITHUB_ENV
 
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
         with:
           submodules: 'recursive'
 
       - name: Install CCache
-        uses: hendrikmuhs/ccache-action@v1.2.3
+        uses: hendrikmuhs/ccache-action@v1.2.23
         with:
           key: ${{ matrix.name }}
 
@@ -242,6 +246,13 @@ jobs:
 
           # Wine WinHTTP implementations seems buggy, there are many errors.
           excluded_tests+=('~[webrequest]')
+
+          case "$wxCONFIGURE_FLAGS" in
+            *--disable-unicode*)
+              # Regex tests require Unicode, skip them in this build.
+              excluded_tests+=('~wxRegEx::*' '~regex::*')
+              ;;
+          esac
 
           $wxTEST_RUNNER ./test.exe "${excluded_tests[@]}"
 

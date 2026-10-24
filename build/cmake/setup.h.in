@@ -845,6 +845,10 @@
  */
 #cmakedefine01 wxUSE_LIBGNOMEVFS
 /*
+ * Use AppIndicator for wxTaskBarIcon (required for Wayland).
+ */
+#cmakedefine01 wxUSE_APPINDICATOR
+/*
  * Use libnotify library.
  */
 #cmakedefine01 wxUSE_LIBNOTIFY
@@ -1245,6 +1249,9 @@
 
 /* Define if setpriority() is available. */
 #cmakedefine HAVE_SETPRIORITY 1
+
+/* Define if xkbcommon is available */
+#cmakedefine HAVE_XKBCOMMON 1
 
 /* Define if xlocale.h header file exists. */
 #cmakedefine HAVE_XLOCALE_H 1

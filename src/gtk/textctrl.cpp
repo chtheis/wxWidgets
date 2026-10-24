@@ -632,7 +632,7 @@ extern "C" {
 static void mark_set(GtkTextBuffer*, GtkTextIter*, GtkTextMark* mark, GSList** markList)
 {
     if (gtk_text_mark_get_name(mark) == NULL)
-        *markList = g_slist_prepend(*markList, mark);
+        *markList = g_slist_prepend(*markList, g_object_ref(mark));
 }
 }
 
@@ -708,7 +708,7 @@ wxTextCtrl::~wxTextCtrl()
         Thaw();
 
     if (m_anonymousMarkList)
-        g_slist_free(m_anonymousMarkList);
+        g_slist_free_full(m_anonymousMarkList, g_object_unref);
     if (m_afterLayoutId)
         g_source_remove(m_afterLayoutId);
 }
@@ -796,11 +796,8 @@ bool wxTextCtrl::Create( wxWindow *parent,
         // new, empty control, see https://github.com/wxWidgets/wxWidgets/issues/11409
         gtk_entry_get_text((GtkEntry*)m_text);
 
-#ifndef __WXGTK3__
         if (style & wxNO_BORDER)
             gtk_entry_set_has_frame((GtkEntry*)m_text, FALSE);
-#endif
-
     }
     g_object_ref(m_widget);
 
@@ -2161,29 +2158,11 @@ wxSize wxTextCtrl::DoGetSizeFromTextSize(int xlen, int ylen) const
 
     if ( IsSingleLine() )
     {
-        if ( HasFlag(wxBORDER_NONE) )
-        {
-#ifdef __WXGTK3__
-            tsize.IncBy(9, 0);
-#else
-            tsize.IncBy(4, 0);
-#endif // GTK3
-        }
-        else
-        {
-            // default height
-            tsize.y = GTKGetPreferredSize(m_widget).y;
-#ifdef __WXGTK3__
-            // Add the margins we have previously set.
-            tsize.IncBy( GTKGetEntryMargins(GetEntry()) );
-#else
-            // For GTK 2 these margins are too big, so hard code something more
-            // reasonable, this is not great but should be fine considering
-            // that it's very unlikely that GTK 2 is going to evolve, making
-            // this inappropriate.
-            tsize.IncBy(20, 0);
-#endif
-        }
+        // Default height
+        tsize.y = GTKGetPreferredSize(m_widget).y;
+
+        // Add padding + border size
+        tsize.x += GTKGetEntryMargins(GetEntry()).x;
     }
 
     //multiline
@@ -2249,7 +2228,7 @@ void wxTextCtrl::DoFreeze()
                 if (GTK_IS_TEXT_MARK(mark) && !gtk_text_mark_get_deleted(mark))
                     gtk_text_buffer_delete_mark(m_buffer, mark);
             }
-            g_slist_free(m_anonymousMarkList);
+            g_slist_free_full(m_anonymousMarkList, g_object_unref);
             m_anonymousMarkList = NULL;
         }
     }

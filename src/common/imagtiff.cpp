@@ -853,7 +853,21 @@ bool wxTIFFHandler::SaveFile( wxImage *image, wxOutputStream& stream, bool verbo
         ptr += imageWidth * 3;
     }
 
-    (void) TIFFClose(tif);
+    if (!TIFFFlush(tif))
+    {
+        if (verbose)
+        {
+            wxLogError( _("TIFF: Error flushing data.") );
+        }
+
+        TIFFClose(tif);
+        if (buf)
+            _TIFFfree(buf);
+
+        return false;
+    }
+
+    TIFFClose(tif);
 
     if (buf)
         _TIFFfree(buf);

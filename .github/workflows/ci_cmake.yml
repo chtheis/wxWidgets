@@ -6,6 +6,7 @@ on:
     branches:
       - 3.2
     paths-ignore:
+      - '.circleci/**'
       - '.github/ISSUE_TEMPLATE/**'
       - '.github/workflows/ci.yml'
       - '.github/workflows/ci_mac.yml'
@@ -27,6 +28,7 @@ on:
     branches:
       - 3.2
     paths-ignore:
+      - '.circleci/**'
       - '.github/ISSUE_TEMPLATE/**'
       - '.github/workflows/ci.yml'
       - '.github/workflows/ci_mac.yml'
@@ -53,16 +55,16 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: Ubuntu 18.04 wxGTK 3
-            runner: ubuntu-18.04
+          - name: Ubuntu 22.04 wxGTK 3
+            runner: ubuntu-22.04
             cmake_generator: Unix Makefiles
             cmake_samples: ALL
-          - name: macOS 10.15 wxOSX
-            runner: macos-10.15
+          - name: macOS 14 wxOSX
+            runner: macos-14
             cmake_generator: Xcode
             cmake_defines: -DCMAKE_CXX_STANDARD=11
-          - name: macOS 10.15 wxIOS
-            runner: macos-10.15
+          - name: macOS 14 wxIOS
+            runner: macos-14
             cmake_generator: Xcode
             cmake_defines: -DCMAKE_SYSTEM_NAME=iOS -DCMAKE_FIND_ROOT_PATH=/usr/local -DCMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED=NO
             cmake_samples: OFF
@@ -85,7 +87,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
         with:
           submodules: 'recursive'
 
@@ -116,10 +118,11 @@ jobs:
         run: |
           ./build/tools/before_install.sh
 
-      # required for CMake to find Ninja
-      - name: "[Windows] Set up MSVC Developer Command Prompt"
-        if: runner.os == 'Windows'
-        uses: seanmiddleditch/gha-setup-vsdevenv@v3
+      # required for CMake to find Ninja but shouldn't be used when using
+      # MSYS2, or we'd end up using MSVC clang instead of its own.
+      - name: Setup MSVC Environment
+        if: ${{ runner.os == 'Windows' && matrix.cmake_generator != 'MinGW Makefiles' }}
+        uses: step-security/gha-setup-vsdevenv@v6
 
       - name: Configuring
         run: |
@@ -142,10 +145,12 @@ jobs:
                 cmake --build . --target install
             fi
 
-      - name: Setup Python
-        uses: actions/setup-python@v4
+      - name: Setup Go
+        if: matrix.cmake_tests != 'OFF'
+        uses: actions/setup-go@v6
         with:
-          python-version: '3.10'
+          go-version: '1'
+          cache: false
 
       - name: Testing
         if: matrix.cmake_tests != 'OFF'

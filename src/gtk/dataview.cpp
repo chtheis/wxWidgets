@@ -38,6 +38,7 @@
 #include "wx/gtk/private/gtk3-compat.h"
 #include "wx/gtk/private/image.h"
 #include "wx/gtk/private/list.h"
+#include "wx/gtk/private/object.h"
 #include "wx/gtk/private/treeview.h"
 #include "wx/gtk/private/value.h"
 using namespace wxGTKImpl;
@@ -1557,6 +1558,15 @@ gtk_wx_cell_renderer_get_size (GtkCellRenderer *renderer,
 
     wxSize size = cell->GetSize();
 
+    // Somehow returning 0 or negative width prevents the returned height from
+    // being taken into account at all, even if we return strictly positive
+    // width from later calls to GetSize(), meaning that it's enough to return
+    // 0 from it once to completely break the layout for the entire lifetime of
+    // the control.
+    //
+    // As this is completely unexpected, forcefully prevent this from happening
+    size.IncTo(wxSize(1, 1));
+
     wxDataViewCtrl * const ctrl = cell->GetOwner()->GetOwner();
 
     // Uniform row height, if specified, overrides the value returned by the
@@ -2958,7 +2968,7 @@ wxDataViewChoiceRenderer::wxDataViewChoiceRenderer( const wxArrayString &choices
     , m_choices(choices)
 {
     m_renderer = (GtkCellRenderer*) gtk_cell_renderer_combo_new();
-    GtkListStore *store = gtk_list_store_new( 1, G_TYPE_STRING );
+    wxGtkObject<GtkListStore> store(gtk_list_store_new( 1, G_TYPE_STRING ));
     for (size_t n = 0; n < m_choices.GetCount(); n++)
     {
         gtk_list_store_insert_with_values(
@@ -2967,7 +2977,7 @@ wxDataViewChoiceRenderer::wxDataViewChoiceRenderer( const wxArrayString &choices
     }
 
     g_object_set (m_renderer,
-            "model", store,
+            "model", store.get(),
             "text-column", 0,
             "has-entry", FALSE,
             NULL);
@@ -3224,10 +3234,18 @@ static void wxGtkTreeCellDataFunc( GtkTreeViewColumn *WXUNUSED(column),
 
     wxDataViewModel *wx_model = tree_model->internal->GetDataViewModel();
 
-    cell->GtkSetCurrentItem(item);
-
     // Cells without values shouldn't be rendered at all.
-    const bool visible = cell->PrepareForItem(wx_model, item, column);
+    const bool visible = wx_model->HasValue(item, column);
+    if ( visible )
+    {
+        cell->GtkSetCurrentItem(item);
+
+        // Ignore the return value of PrepareForItem() here, if it returns
+        // false because GetValue() didn't return anything, we still want to
+        // keep this cell visible, as otherwise it wouldn't be possible to edit
+        // it neither, and we do want to allow editing empty cells.
+        cell->PrepareForItem(wx_model, item, column);
+    }
 
     wxGtkValue gvalue( G_TYPE_BOOLEAN );
     g_value_set_boolean( gvalue, visible );
@@ -4743,7 +4761,7 @@ gtk_dataview_button_press_callback( GtkWidget *WXUNUSED(widget),
         }
 
         wxDataViewEvent
-            event(wxEVT_DATAVIEW_ITEM_CONTEXT_MENU, dv, dv->GTKPathToItem(path));
+            event(wxEVT_DATAVIEW_ITEM_CONTEXT_MENU, dv, dv->GTKColumnToWX(column), dv->GTKPathToItem(path));
 #if GTK_CHECK_VERSION(2,12,0)
         if (wx_is_at_least_gtk2(12))
         {

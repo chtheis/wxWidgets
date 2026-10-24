@@ -21,7 +21,7 @@
 
 
 #ifndef WX_PRECOMP
-    #include "wx/msw/wrapcdlg.h"
+    #include "wx/msw/private.h"
     #include "wx/image.h"
     #include "wx/window.h"
     #include "wx/utils.h"
@@ -1200,7 +1200,19 @@ void wxMSWDCImpl::DoDrawRectangle(wxCoord x, wxCoord y, wxCoord width, wxCoord h
         y2dev++;
     }
 
-    (void)Rectangle(GetHdc(), x1dev, y1dev, x2dev, y2dev);
+    const wxCoord widthDev = x2dev - x1dev;
+    const wxCoord heightDev = y2dev - y1dev;
+    if ( m_pen.IsNonTransparent() && (widthDev == 1 || widthDev == -1) &&
+         (heightDev == 1 || heightDev == -1) )
+    {
+        // GDI Rectangle() doesn't draw this degenerate outline at all.
+        SetPixel(GetHdc(), widthDev > 0 ? x1dev : x2dev,
+                 heightDev > 0 ? y1dev : y2dev, m_pen.GetColour().GetPixel());
+    }
+    else
+    {
+        (void)Rectangle(GetHdc(), x1dev, y1dev, x2dev, y2dev);
+    }
 
     CalcBoundingBox(x, y, x2, y2);
 }
@@ -2383,7 +2395,9 @@ bool wxMSWDCImpl::DoStretchBlit(wxCoord xdest, wxCoord ydest,
     xdest += XLOG2DEV(0);
     ydest += YLOG2DEV(0);
 
-    const int xsrcOrig = xsrc;
+    // Manually adjusted for RTL layout to fix incorrect scrolling of the DIB
+    // when blitted with ::StretchDIBits() below.
+    const int xsrcOrig = GetLayoutDirection() == wxLayout_LeftToRight ? xsrc : -xsrc;
     const int ysrcOrig = ysrc;
 
     // This does the same thing as XLOG2DEV() but for the source DC.
@@ -2603,10 +2617,23 @@ bool wxMSWDCImpl::DoStretchBlit(wxCoord xdest, wxCoord ydest,
                 // automatically as it doesn't even work with the source HDC.
                 // So do this manually to ensure that the coordinates are
                 // interpreted in the same way here as in all the other cases.
-                xsrc = source->LogicalToDeviceX(xsrcOrig);
-                ysrc = source->LogicalToDeviceY(ysrcOrig);
-                srcWidth = source->LogicalToDeviceXRel(srcWidth);
-                srcHeight = source->LogicalToDeviceYRel(srcHeight);
+                // Notice that drawings performed on a DIB section are not
+                // automatically mirrored when SetLayout(LAYOUT_RTL) is called.
+                // IOW, blitting a DIB using StretchDIBits() will always look
+                // incorrect in RTL layout, because SetLayout() cannot modify
+                // drawing directly into the bits of a DIB as documented in MSDN.
+                // Fixing this RTL issue is by using LogicalToDevice{Rel}() and
+                // rely on StretchDIBits() to create a mirror image of the bitmap.
+                // LogicalToDevice[XY]{Rel}() doesn't work correctly in RTL as it
+                // doesn't account for m_signX (which is always +1 even in RTL).
+
+                const wxPoint pt = source->LogicalToDevice(xsrcOrig, ysrcOrig);
+                const wxSize sz = source->LogicalToDeviceRel(srcWidth, srcHeight);
+
+                xsrc = pt.x;
+                ysrc = pt.y;
+                srcWidth = sz.x;
+                srcHeight = sz.y;
 
                 // Figure out what co-ordinate system we're supposed to specify
                 // ysrc in.

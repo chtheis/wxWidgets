@@ -524,7 +524,7 @@ void wxListLineData::CalculateSize( wxDC *dc, int spacing )
     }
 }
 
-void wxListLineData::SetPosition( int x, int y, int spacing )
+void wxListLineData::SetPosition( int x, int y, int WXUNUSED(spacing) )
 {
     wxListItemDataList::compatibility_iterator node = m_items.GetFirst();
     wxCHECK_RET( node, wxT("no subitems at all??") );
@@ -540,19 +540,19 @@ void wxListLineData::SetPosition( int x, int y, int spacing )
 
             if ( item->HasImage() )
             {
-                m_gi->m_rectIcon.x = m_gi->m_rectAll.x + 4;
+                m_gi->m_rectIcon.x = m_gi->m_rectAll.x + 4 +
+                    (m_gi->m_rectAll.width - m_gi->m_rectIcon.width) / 2;
                 m_gi->m_rectIcon.y = m_gi->m_rectAll.y + 4;
             }
 
             if ( item->HasText() )
             {
-                if (m_gi->m_rectAll.width > spacing)
-                    m_gi->m_rectLabel.x = m_gi->m_rectAll.x + (EXTRA_WIDTH/2);
-                else
-                    m_gi->m_rectLabel.x = m_gi->m_rectAll.x + (EXTRA_WIDTH/2) + (spacing / 2) - (m_gi->m_rectLabel.width / 2);
-                m_gi->m_rectLabel.y = m_gi->m_rectAll.y + m_gi->m_rectAll.height + 2 - m_gi->m_rectLabel.height;
-                m_gi->m_rectHighlight.x = m_gi->m_rectLabel.x - 2;
-                m_gi->m_rectHighlight.y = m_gi->m_rectLabel.y - 2;
+                m_gi->m_rectLabel.x = m_gi->m_rectAll.x + (EXTRA_WIDTH/2) +
+                    (m_gi->m_rectAll.width - m_gi->m_rectLabel.width) / 2;
+                m_gi->m_rectLabel.y = m_gi->m_rectAll.y + m_gi->m_rectAll.height +
+                    (EXTRA_HEIGHT/2) - m_gi->m_rectLabel.height;
+                m_gi->m_rectHighlight.x = m_gi->m_rectLabel.x - (EXTRA_WIDTH/2);
+                m_gi->m_rectHighlight.y = m_gi->m_rectLabel.y - (EXTRA_HEIGHT/2);
             }
             else // no text, highlight the icon
             {
@@ -784,7 +784,8 @@ void wxListLineData::DrawInReportMode( wxDC *dc,
                                        const wxRect& rect,
                                        const wxRect& rectHL,
                                        bool highlighted,
-                                       bool current )
+                                       bool current,
+                                       bool checked )
 {
     // TODO: later we should support setting different attributes for
     //       different columns - to do it, just add "col" argument to
@@ -805,7 +806,7 @@ void wxListLineData::DrawInReportMode( wxDC *dc,
         rr.x += MARGIN_AROUND_CHECKBOX;
 
         int flags = 0;
-        if (m_checked)
+        if (checked)
             flags |= wxCONTROL_CHECKED;
         wxRendererNative::Get().DrawCheckBox(m_owner, *dc, rr, flags);
 
@@ -1499,6 +1500,7 @@ bool wxListTextCtrlWrapper::CheckForEndEditKey(const wxKeyEvent& event)
     switch ( event.m_keyCode )
     {
         case WXK_RETURN:
+        case WXK_NUMPAD_ENTER:
             EndEdit( End_Accept );
             break;
 
@@ -1515,7 +1517,7 @@ bool wxListTextCtrlWrapper::CheckForEndEditKey(const wxKeyEvent& event)
 
 void wxListTextCtrlWrapper::OnKeyUp( wxKeyEvent &event )
 {
-    if (m_aboutToFinish)
+    if ( !m_aboutToFinish )
     {
         // auto-grow the textctrl:
         wxSize parentSize = m_owner->GetSize();
@@ -1990,13 +1992,16 @@ void wxListMainWindow::RefreshAfter( size_t lineFrom )
 {
     if ( InReportView() )
     {
-        size_t visibleFrom, visibleTo;
-        GetVisibleLinesRange(&visibleFrom, &visibleTo);
+        // Note that we don't compare lineFrom with the last visible line
+        // because we refresh the entire rectangle below it anyhow, so it
+        // doesn't matter if it's bigger than it. And we must still refresh
+        // even if lineFrom is invalid because it may have been (just) deleted
+        // when we're called from DeleteItem().
+        size_t visibleFrom;
+        GetVisibleLinesRange(&visibleFrom, NULL);
 
         if ( lineFrom < visibleFrom )
             lineFrom = visibleFrom;
-        else if ( lineFrom > visibleTo )
-            return;
 
         wxRect rect;
         rect.x = 0;
@@ -2148,7 +2153,8 @@ void wxListMainWindow::OnPaint( wxPaintEvent &WXUNUSED(event) )
                                              rectLine,
                                              GetLineHighlightRect(line),
                                              IsHighlighted(line),
-                                             line == m_current );
+                                             line == m_current,
+                                             IsItemChecked(line) );
         }
 
         if ( HasFlag(wxLC_HRULES) )
@@ -2268,7 +2274,10 @@ void wxListMainWindow::HighlightOnly( size_t line, size_t oldLine )
                                : RefreshLine(oldLine); // refresh the old focus to remove it
     }
 
-    if ( selCount > 1 ) // multiple-selection only
+    // Deselect the remaining items we may have when using multiple selection
+    // (for single selection the only selected item is always the highlighted
+    // one, so we would have already returned above).
+    if ( selCount != 0 )
     {
         // Deselecting many items at once will generate wxEVT_XXX_DESELECTED event
         // for each one of them. although this may be inefficient if the number of
@@ -2433,8 +2442,15 @@ bool wxListMainWindow::OnRenameAccept(size_t itemEdit, const wxString& value)
 
     data->GetItem( 0, le.m_item );
     le.m_item.m_text = value;
-    return !GetParent()->GetEventHandler()->ProcessEvent( le ) ||
-                le.IsAllowed();
+
+    GetParent()->GetEventHandler()->ProcessEvent( le );
+
+    if ( !le.IsAllowed() )
+        return false;
+
+    m_dirty = true;
+
+    return true;
 }
 
 void wxListMainWindow::OnRenameCancelled(size_t itemEdit)
@@ -2580,12 +2596,17 @@ void wxListMainWindow::OnMouse( wxMouseEvent &event )
         }
         else if (event.LeftDown())
         {
-            // reset the selection and bail out
-            HighlightAll(false);
-            // generate a DESELECTED event for
-            // virtual multi-selection lists
-            if ( IsVirtual() && !IsSingleSel() )
-                SendNotify( m_lineLastClicked, wxEVT_LIST_ITEM_DESELECTED );
+            // reset the selection in multi-selection mode only when Ctrl and
+            // Shift keys are not pressed to mimic MSW behaviour
+            if ( IsSingleSel() || !(event.ControlDown() || event.ShiftDown()) )
+            {
+                // reset the selection and bail out
+                HighlightAll(false);
+                // generate a DESELECTED event for
+                // virtual multi-selection lists
+                if ( IsVirtual() && !IsSingleSel() )
+                    SendNotify( m_lineLastClicked, wxEVT_LIST_ITEM_DESELECTED );
+            }
         }
 
         return;
@@ -3776,6 +3797,10 @@ void wxListMainWindow::SetItemCount(long count)
     if ( HasCurrent() && m_current >= (size_t)count )
         ChangeCurrent(count - 1);
 
+    // And do the same thing for the multiple selection anchor.
+    if ( m_anchor != (size_t)-1 && m_anchor >= (size_t)count )
+        m_anchor = count - 1;
+
     m_selStore.SetItemCount(count);
     m_countVirt = count;
 
@@ -3955,10 +3980,15 @@ bool wxListMainWindow::EnableCheckBoxes(bool enable)
 
 void wxListMainWindow::CheckItem(long item, bool state)
 {
-    wxListLineData *line = GetLine((size_t)item);
-    line->Check(state);
+    wxCHECK_RET( HasCheckBoxes(), "checkboxes are disabled" );
 
-    RefreshLine(item);
+    if ( !IsVirtual() )
+    {
+        wxListLineData* line = GetLine((size_t)item);
+        line->Check(state);
+
+        RefreshLine(item);
+    }
 
     SendNotify(item, state ? wxEVT_LIST_ITEM_CHECKED
         : wxEVT_LIST_ITEM_UNCHECKED);
@@ -3966,8 +3996,19 @@ void wxListMainWindow::CheckItem(long item, bool state)
 
 bool wxListMainWindow::IsItemChecked(long item) const
 {
-    wxListLineData *line = GetLine((size_t)item);
-    return line->IsChecked();
+    if ( !HasCheckBoxes() )
+        return false;
+
+    if ( !IsVirtual() )
+    {
+        wxListLineData* line = GetLine((size_t)item);
+        return line->IsChecked();
+    }
+    else
+    {
+        wxGenericListCtrl* listctrl = GetListCtrl();
+        return listctrl->OnGetItemIsChecked(item);
+    }
 }
 
 bool wxListMainWindow::IsInsideCheckBox(long item, int x, int y)
@@ -4320,6 +4361,9 @@ void wxListMainWindow::DeleteItem( long lindex )
     }
     else
     {
+        if ( m_lines[index]->IsHighlighted() )
+            UpdateSelectionCount(false);
+
         delete m_lines[index];
         m_lines.erase( m_lines.begin() + index );
     }
@@ -5513,9 +5557,26 @@ long wxGenericListCtrl::FindItem( long WXUNUSED(start), const wxPoint& pt,
 
 long wxGenericListCtrl::HitTest(const wxPoint& point, int& flags, long *col) const
 {
-    // TODO: sub item hit testing
     if ( col )
+    {
         *col = -1;
+        if ( InReportView() )
+        {
+            const wxPoint unscrolled = CalcUnscrolledPosition( point );
+
+            for ( int c = 0, wsum = 0, cols = GetColumnCount();
+                  c < cols;
+                  ++c )
+            {
+                wsum += GetColumnWidth(c);
+                if ( wsum > unscrolled.x )
+                {
+                    *col = c;
+                    break;
+                }
+            }
+        }
+    }
 
     return m_mainWin->HitTest( (int)point.x, (int)point.y, flags );
 }

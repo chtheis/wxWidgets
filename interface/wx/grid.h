@@ -5902,11 +5902,21 @@ public:
     */
     void SetRowAttr(int row, wxGridCellAttr* attr);
 
-
+    /**
+        Returns an array of row labels within the given region.
+    */
     wxArrayInt CalcRowLabelsExposed( const wxRegion& reg,
                                      wxGridWindow *gridWindow = NULL) const;
+
+    /**
+        Returns an array of column labels within the given region.
+    */
     wxArrayInt CalcColLabelsExposed( const wxRegion& reg,
                                      wxGridWindow *gridWindow = NULL) const;
+
+    /**
+        Returns an array of (visible) cells within the given region.
+    */
     wxGridCellCoordsArray CalcCellsExposed( const wxRegion& reg,
                                             wxGridWindow *gridWindow = NULL) const;
 
@@ -6038,6 +6048,28 @@ public:
         @since 3.1.3
      */
     wxWindow* GetFrozenColGridWindow() const;
+
+    /**
+        Return the row labels window containing frozen cells.
+
+        This window is shown only when there are frozen rows.
+        This window is not shown if the rows labels were hidden using
+        HideRowLabels().
+
+        @since 3.2.11
+     */
+    wxWindow* GetFrozenRowLabelWindow() const;
+
+    /**
+        Return the column labels window containing frozen cells.
+
+        This window is shown only when there are frozen columns.
+        This window is not shown if the columns labels were hidden using
+        HideColLabels().
+
+        @since 3.2.11
+     */
+    wxWindow* GetFrozenColLabelWindow() const;
 
     /**
         Return the row labels window.

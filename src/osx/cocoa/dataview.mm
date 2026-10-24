@@ -1112,6 +1112,20 @@ outlineView:(NSOutlineView*)outlineView
     return cellFrame;
 }
 
+-(NSRect)expansionFrameWithFrame:(NSRect)cellFrame
+    inView:(NSView*)view
+{
+    // We override the default behaviour to avoid showing nonsensical tooltips
+    // for the custom cells: if we don't do this, NSTextFieldCell would show a
+    // tooltip with the debug representation of wxCustomRendererObject which is
+    // not very useful.
+    //
+    // Note: override outlineView:toolTipForCell:rect:tableColumn:item:mouseLocation:
+    // in NSOutlineViewDelegate if we ever want to support per-cell tooltips
+    // instead of just suppressing them.
+    return NSZeroRect;
+}
+
 @end
 
 // ============================================================================
@@ -1602,6 +1616,12 @@ outlineView:(NSOutlineView*)outlineView
     const wxDataViewItem item = wxDataViewItemFromItem([self itemAtRow:row]);
 
     const NSInteger col = [self clickedColumn];
+
+    // Column can be invalid too, e.g. when clicking beyond the last column,
+    // so check for this too for the same reason as we do it for the row above.
+    if ( col == -1 )
+      return;
+
     wxDataViewColumn* const dvCol = implementation->GetColumn(col);
 
     // Check if we need to activate a custom renderer first.
@@ -1642,33 +1662,6 @@ outlineView:(NSOutlineView*)outlineView
     {
         impl->doCommandBySelector(aSelector, self, _cmd);
     }
-}
-
-//
-// contextual menus
-//
--(NSMenu*) menuForEvent:(NSEvent*)theEvent
-{
-    wxUnusedVar(theEvent);
-
-    // this method does not do any special menu event handling but only sends
-    // an event message; therefore, the user has full control if a context
-    // menu should be shown or not
-    wxDataViewCtrl* const dvc = implementation->GetDataViewCtrl();
-
-    // get the item information;
-    // theoretically more than one ID can be returned but the event can only
-    // handle one item, therefore only the first item of the array is
-    // returned:
-    wxDataViewItem item;
-    wxDataViewItemArray selectedItems;
-    if (dvc->GetSelections(selectedItems) > 0)
-        item = selectedItems[0];
-
-    wxDataViewEvent event(wxEVT_DATAVIEW_ITEM_CONTEXT_MENU, dvc, item);
-    dvc->GetEventHandler()->ProcessEvent(event);
-    // nothing is done:
-    return nil;
 }
 
 //
@@ -2028,7 +2021,7 @@ void wxCocoaDataViewControl::InitOutlineView(long style)
     NSTableHeaderView* header = nil;
     if ( !(style & wxDV_NO_HEADER) )
     {
-        header = [[wxDVCNSHeaderView alloc] initWithDVC:GetDataViewCtrl()];
+        header = [[[wxDVCNSHeaderView alloc] initWithDVC:GetDataViewCtrl()] autorelease];
     }
 
     [m_OutlineView setHeaderView:header];
@@ -2042,8 +2035,8 @@ wxCocoaDataViewControl::~wxCocoaDataViewControl()
 
 void wxCocoaDataViewControl::keyEvent(WX_NSEvent event, WXWidget slf, void *_cmd)
 {
-    if( [event type] == NSKeyDown && [[event charactersIgnoringModifiers]
-         characterAtIndex: 0] == NSCarriageReturnCharacter )
+    NSString* c = [event type] == NSKeyDown ? [event charactersIgnoringModifiers] : nil;
+    if( c != nil && [c length] >= 1 && [c characterAtIndex: 0] == NSCarriageReturnCharacter )
     {
         wxDataViewCtrl* const dvc = GetDataViewCtrl();
         const wxDataViewItem item = wxDataViewItem( [[m_OutlineView itemAtRow:[m_OutlineView selectedRow]] pointer]);

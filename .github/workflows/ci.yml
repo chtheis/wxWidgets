@@ -6,6 +6,7 @@ on:
     branches:
       - 3.2
     paths-ignore:
+      - '.circleci/**'
       - '.github/ISSUE_TEMPLATE/**'
       - '.github/workflows/ci_mac.yml'
       - '.github/workflows/ci_cmake.yml'
@@ -29,6 +30,7 @@ on:
     branches:
       - 3.2
     paths-ignore:
+      - '.circleci/**'
       - '.github/ISSUE_TEMPLATE/**'
       - '.github/workflows/ci_mac.yml'
       - '.github/workflows/ci_cmake.yml'
@@ -56,59 +58,70 @@ jobs:
   build:
     runs-on: ${{ matrix.runner }}
     name: ${{ matrix.name }}
+    container: ${{ matrix.container }}
     strategy:
       fail-fast: false
       matrix:
         include:
           - name: Ubuntu 18.04 wxGTK 2
-            runner: ubuntu-18.04
+            runner: ubuntu-latest
+            container: ubuntu:18.04
             compiler_flags: -std=c++98
             gtk_version: 2
             use_xvfb: true
-          - name: Ubuntu 18.04 wxGTK 2 UTF-8
-            runner: ubuntu-18.04
-            gtk_version: 2
+          - name: Ubuntu 18.04 wxGTK UTF-8
+            runner: ubuntu-latest
+            container: ubuntu:18.04
             configure_flags: --enable-utf8 --enable-utf8only --enable-monolithic
             use_xvfb: true
-          - name: Ubuntu 18.04 wxGTK3 static
-            runner: ubuntu-18.04
+          - name: Ubuntu 18.04 wxGTK 3 static with gcc 4.8
+            runner: ubuntu-latest
+            compiler: g++-4.8
+            container: ubuntu:18.04
             compiler_flags: -std=c++98
             configure_flags: --disable-shared
             use_xvfb: true
           - name: Ubuntu 18.04 wxGTK 3 STL
-            runner: ubuntu-18.04
-            configure_flags: --enable-cxx11 --enable-stl --disable-compat30
+            runner: ubuntu-latest
+            container: ubuntu:18.04
+            configure_flags: --enable-cxx11 --enable-pch --enable-stl --disable-compat30
             use_xvfb: true
-          - name: Ubuntu 18.04 wxGTK 3 with clang
-            runner: ubuntu-18.04
-            compiler: clang
+            build_out_of_tree_samples: true
+          - name: Ubuntu 20.04 wxGTK 3 with clang
+            runner: ubuntu-latest
+            container: ubuntu:20.04
+            compiler: clang++-10
             configure_flags: --disable-sys-libs
             use_xvfb: true
-          - name: Ubuntu 20.04 wxGTK ANSI
-            runner: ubuntu-20.04
+          - name: Ubuntu 22.04 wxGTK ANSI
+            runner: ubuntu-22.04
             configure_flags: --disable-unicode
             skip_samples: true
-          - name: Ubuntu 22.04 wxGTK with ASAN
-            runner: ubuntu-22.04
-            configure_flags: --disable-compat30 --disable-sys-libs --disable-webview
+          - name: Ubuntu 24.04 wxGTK with ASAN
+            runner: ubuntu-24.04
+            configure_flags: --disable-compat30 --disable-sys-libs
             skip_samples: true
             use_asan: true
             use_xvfb: true
           - name: Ubuntu 18.04 wxX11
-            runner: ubuntu-18.04
-            configure_flags: --with-x11 --enable-pch --disable-stc
+            runner: ubuntu-latest
+            container: ubuntu:18.04
+            configure_flags: --with-x11 --disable-stc
             skip_samples: true
           - name: Ubuntu 18.04 wxDFB
-            runner: ubuntu-18.04
+            runner: ubuntu-latest
+            container: ubuntu:18.04
             configure_flags: --with-directfb --enable-pch --disable-stc
             skip_samples: true
             allow_warnings: true
           - name: Ubuntu 18.04 wxMotif
-            runner: ubuntu-18.04
+            runner: ubuntu-latest
+            container: ubuntu:18.04
             configure_flags: --with-motif --enable-pch --disable-stc
             skip_samples: true
           - name: Ubuntu 18.04 wxQt
-            runner: ubuntu-18.04
+            runner: ubuntu-latest
+            container: ubuntu:18.04
             configure_flags: --with-qt --enable-pch --without-opengl
             skip_samples: true
 
@@ -117,15 +130,82 @@ jobs:
       wxCONFIGURE_FLAGS: ${{ matrix.configure_flags }}
       wxUSE_ASAN: ${{ matrix.use_asan && 1 || 0 }}
       wxUSE_XVFB: ${{ matrix.use_xvfb && 1 || 0 }}
+      ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
 
     steps:
+      - name: Set up build system
+        run: |
+          case '${{ matrix.container }}' in
+            ubuntu:*)
+              export DEBIAN_FRONTEND=noninteractive
+
+              if [ '${{ matrix.container }}' = 'ubuntu:18.04' ]; then
+                # First get the package containing /usr/bin/apt-add-repository.
+                apt-get update -qq
+                apt-get install -qq software-properties-common
+
+                # Git 2.17 in the official repository is too old to checkout
+                # submodules using it, so get a newer version.
+                apt-add-repository ppa:git-core/ppa
+              fi
+
+              compiler=${{ matrix.compiler }}
+              case "$compiler" in
+                clang++*)
+                  compiler_packages='clang libc++-dev libc++abi-dev'
+                  ;;
+
+                g++*)
+                  compiler_packages="${compiler}"
+                  ;;
+
+                '')
+                  # Assume gcc.
+                  compiler_packages='g++'
+                  ;;
+
+                *)
+                  echo '::error ::Unknown compiler kind.'
+                  exit 1
+              esac
+
+              # Explanation for installing some less obvious packages:
+              #   - coreutils contains nproc used in proc_count.sh called below.
+              #   - locales contains locale-gen also used below.
+              #   - xvfb is used for running the GUI tests.
+              apt-get update -qq
+              apt-get install -qq coreutils ${compiler_packages} git locales make pkg-config sudo xvfb
+
+              # Checkout action doesn't work under Ubuntu 18.04 any more, so
+              # run checkout manually.
+              git config --global --add safe.directory $GITHUB_WORKSPACE
+              git config --global gc.auto 0
+              git init $GITHUB_WORKSPACE
+              cd $GITHUB_WORKSPACE
+              git remote add origin $GITHUB_SERVER_URL/$GITHUB_REPOSITORY
+              git fetch --depth=1 origin $GITHUB_REF
+              git checkout FETCH_HEAD
+              git submodule update --init --depth=1 --recursive
+              git log -1 --format='%H'
+              ;;
+
+            '')
+              ;;
+
+            *)
+              echo '::error ::Unknown container kind.'
+              exit 1
+          esac
+
       - name: Checkout
-        uses: actions/checkout@v3
+        if: matrix.container != 'ubuntu:18.04'
+        uses: actions/checkout@v6
         with:
           submodules: 'recursive'
 
       - name: Install CCache
-        uses: hendrikmuhs/ccache-action@v1.2.3
+        if: matrix.container != 'ubuntu:18.04'
+        uses: hendrikmuhs/ccache-action@v1.2.23
         with:
           key: ${{ matrix.name }}
 
@@ -138,17 +218,34 @@ jobs:
 
           echo "PATH=/usr/lib/ccache:$PATH" >> $GITHUB_ENV
 
+          if [ '${{ matrix.container }}' = 'ubuntu:18.04' ]; then
+            # We can't easily install Go, so skip the tests requiring httpbin.
+            echo 'Disabling httpbin under Ubuntu 18.04'
+            echo WX_TEST_WEBREQUEST_URL=0 >> $GITHUB_ENV
+            export WX_TEST_WEBREQUEST_URL=0
+          fi
+
           # Setting this variable suppresses "Error retrieving accessibility bus address"
           # messages from WebKit tests that we're not interested in.
           echo NO_AT_BRIDGE=1 >> $GITHUB_ENV
 
-          case "${{ matrix.compiler }}" in
-            clang)
-              echo CC=clang >> $GITHUB_ENV
-              echo CXX='clang++ -stdlib=libc++' >> $GITHUB_ENV
-              echo LD=clang++ >> $GITHUB_ENV
+          compiler=${{ matrix.compiler }}
+          case "$compiler" in
+            clang++*)
+              echo CC=`echo $compiler | sed s/++//` >> $GITHUB_ENV
+              echo CXX="$compiler -stdlib=libc++" >> $GITHUB_ENV
+              echo LD=$compiler >> $GITHUB_ENV
 
               allow_warn_opt="-Wno-error=#warnings"
+
+              export WX_EXTRA_PACKAGES="libc++-dev"
+              ;;
+
+            g++*)
+              echo CC=`echo $compiler | sed s/++/cc/` >> $GITHUB_ENV
+              echo CXX=$compiler >> $GITHUB_ENV
+              echo LD=$compiler >> $GITHUB_ENV
+              allow_warn_opt="-Wno-error=cpp"
               ;;
 
             '')
@@ -187,7 +284,7 @@ jobs:
           echo
 
           echo "ccache version:"
-          ccache --version
+          ccache --version || echo "ccache not available"
           echo
 
       - name: Configuring
@@ -217,6 +314,17 @@ jobs:
 
       - name: Building
         run: |
+          if [ ${{ matrix.use_asan }} ]; then
+            # This is a horrible hack needed to prevent ASAN from being used
+            # for the WebKit extension shared library: this wouldn't work
+            # because this library is loaded in a separate WebKit process not
+            # using ASAN. This should really be fixed at makefile level, but
+            # for now just work around the problem here by manually building
+            # this library without ASAN: get the compile and link commands
+            # (the only ones that should contain ASAN flags) and filter these
+            # flags out from them before running them.
+            /bin/sh -xc "`make -n install_webkit2_ext | sed -n -e 's/-fsanitize=address//gp'`"
+          fi
           make -k $wxBUILD_ARGS "CXXFLAGS=$wxMAKEFILE_ERROR_CXXFLAGS"
 
       - name: Building tests
@@ -225,10 +333,12 @@ jobs:
           make $wxBUILD_ARGS failtest
           make -k $wxBUILD_ARGS "CXXFLAGS=$wxMAKEFILE_CXXFLAGS" "LDFLAGS=$wxMAKEFILE_LDFLAGS"
 
-      - name: Setup Python
-        uses: actions/setup-python@v4
+      - name: Setup Go
+        if: matrix.container != 'ubuntu:18.04'
+        uses: actions/setup-go@v6
         with:
-          python-version: '3.10'
+          go-version: '1'
+          cache: false
 
       - name: Testing
         working-directory: tests
@@ -244,7 +354,7 @@ jobs:
           if [ ${{ matrix.use_asan }} ]; then
             # Work around spurious crashes by running the test again.
             # See https://github.com/google/sanitizers/issues/1353
-            if fgrep -q 'LeakSanitizer has encountered a fatal error' test.out; then
+            if grep -qF 'LeakSanitizer has encountered a fatal error' test.out; then
                 echo '+++ Rerunning the tests once again after LeakSanitizer crash +++'
                 unset rc
                 ./test || rc=$?
@@ -277,9 +387,16 @@ jobs:
             wx_tests_selection='~[.] ~RichTextCtrlTestCase'
           fi
           ulimit -c unlimited
+
+          # This is exceedingly weird, but for some reason the first test using
+          # wxWebView sometimes fails (even if the timeout in the test is
+          # increased), so run it before really running the tests -- then they
+          # will succeed.
+          xvfb-run -a -s '-screen 0 1600x1200x24' ./test_gui -c Title WebView >/dev/null 2>&1 || echo 'First wxWebView test failure ignored.'
+
           /bin/bash -o pipefail -c "xvfb-run -a -s '-screen 0 1600x1200x24' ./test_gui -d 1 $wx_tests_selection 2>&1 | tee -a test_gui.out" || rc=$?
           if [ -n "$rc" ]; then
-            if fgrep -q '(core dumped)' test_gui.out; then
+            if grep -qF '(core dumped)' test_gui.out; then
                 echo '*** Test crashed, trying to get more information ***'
                 gdb --quiet --core=core -ex 'where' -ex 'thread apply all bt' -ex 'q' ./test_gui
             fi
@@ -299,3 +416,12 @@ jobs:
         run: |
           make -C samples/minimal -f makefile.unx clean
           make -C samples/minimal -f makefile.unx $wxBUILD_ARGS "CXXFLAGS=$wxMAKEFILE_CXXFLAGS" "LDFLAGS=$wxMAKEFILE_LDFLAGS"
+
+      - name: Building samples out of tree
+        if: matrix.build_out_of_tree_samples
+        run: |
+          make -C samples clean
+          for f in $(find samples -name makefile.unx); do
+              mv $f $(dirname $f)/Makefile
+          done
+          make -C samples -k $wxBUILD_ARGS
