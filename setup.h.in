@@ -17,6 +17,15 @@
 /* the installation location prefix from configure */
 #undef wxINSTALL_PREFIX
 
+/* Is .symver assembler directive supported? */
+#undef wxHAVE_ELF_SYMVER
+
+/* Are multiple versions of the same symbol supported? */
+#undef wxHAVE_ELF_SYMVER_MULTIPLE
+
+/* Prefix for the ELF version used for the library symbols. */
+#undef wxELF_VERSION_PREFIX
+
 /* Define if ssize_t type is available.  */
 #undef HAVE_SSIZE_T
 
@@ -844,6 +853,10 @@
  * Use GNOME VFS for MIME types
  */
 #define wxUSE_LIBGNOMEVFS 0
+/*
+ * Use AppIndicator for wxTaskBarIcon (required for Wayland).
+ */
+#define wxUSE_APPINDICATOR 0
 /*
  * Use libnotify library.
  */

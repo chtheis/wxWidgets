@@ -184,8 +184,10 @@ public:
     int CompareStrings(const wxString& lhs, const wxString& rhs,
                        int flags) const wxOVERRIDE;
 
+#if wxUSE_DATETIME
     wxString DoGetMonthName(wxDateTime::Month month, wxDateTime::NameFlags flags) const;
     wxString DoGetWeekDayName(wxDateTime::WeekDay weekday, wxDateTime::NameFlags flags) const;
+#endif // wxUSE_DATETIME
 
 private:
 #ifdef HAVE_LANGINFO_H
@@ -332,20 +334,7 @@ wxString wxLocaleIdent::GetName() const
 
     wxString name;
     if ( !m_language.empty() )
-    {
-        name << m_language;
-
-        if ( !m_region.empty() )
-            name << "_" << m_region;
-
-        if ( !m_charset.empty() )
-            name << "." << m_charset;
-
-        if ( !m_script.empty() )
-            name << "@" << wxUILocale::GetScriptAliasFromName(m_script);
-        else if ( !m_modifier.empty() )
-            name << "@" << m_modifier;
-    }
+        name = GetTag(wxLOCALE_TAGTYPE_POSIX);
 
     return name;
 }
@@ -711,6 +700,7 @@ wxUILocaleImplUnix::GetLocalizedName(wxLocaleName name, wxLocaleForm form) const
     return str;
 }
 
+#if wxUSE_DATETIME
 wxString
 wxUILocaleImplUnix::DoGetMonthName(wxDateTime::Month month, wxDateTime::NameFlags flags) const
 {
@@ -814,6 +804,7 @@ wxUILocaleImpl::GetWeekDayName(wxDateTime::WeekDay weekday, wxDateTime::NameFlag
 {
     return static_cast<const wxUILocaleImplUnix*>(this)->DoGetWeekDayName(weekday, flags);
 }
+#endif // wxUSE_DATETIME
 
 wxLayoutDirection
 wxUILocaleImplUnix::GetLayoutDirection() const

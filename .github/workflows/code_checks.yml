@@ -14,12 +14,12 @@ permissions:
 
 jobs:
   check-unix:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     name: Check Spelling
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
 
       - name: Install codespell
         run: |
@@ -31,12 +31,12 @@ jobs:
 
 
   check-whitespace:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     name: Check Whitespace
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
 
       - name: Check for trailing whitespace and TABs
         run: |
@@ -50,7 +50,9 @@ jobs:
                 ':!configure' \
                 ':!descrip.mms' \
                 ':!install-sh' \
+                ':!build/cmake/modules/cotire.cmake' \
                 ':!docs/doxygen/doxygen-awesome-css/*' \
+                ':!misc/unictabl/mappings/*.TXT' \
                 ':!samples/widgets/widgets.bkl' \
                 ':!**/*akefile*' \
                 ':!**/*.pbxproj' \
@@ -61,12 +63,12 @@ jobs:
 
 
   check-mixed-eol:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     name: Check Mixed EOL
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
 
       - name: Install dos2unix
         run: |
@@ -77,12 +79,12 @@ jobs:
             ./misc/scripts/check_mixed_eol.sh
 
   check-cxx-style:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     name: Check C++ Style
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
 
       - name: Check for C++11 keywords
         run: |
@@ -91,7 +93,7 @@ jobs:
                ':!.github/workflows/code_checks.yml' \
                ':!src/stc/scintilla/' \
                | sed 's@//.*@@' \
-               | grep -E '(override|noexcept|nullptr[^_])'; then
+               | grep -E '(override($|;| *\{)|noexcept|nullptr[^_])'; then
               echo "::error ::Please use C++98 equivalents of the C++11 keywords in this branch."
               exit 1
             fi

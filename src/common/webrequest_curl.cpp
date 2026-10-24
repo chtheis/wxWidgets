@@ -584,7 +584,7 @@ WinSock1SocketPoller::~WinSock1SocketPoller()
     // Close the message window.
     if ( m_hwnd )
     {
-        CloseWindow(m_hwnd);
+        DestroyWindow(m_hwnd);
     }
 
     // Cleanup winsock.
@@ -920,10 +920,12 @@ wxWebSessionCURL::wxWebSessionCURL() :
 
 wxWebSessionCURL::~wxWebSessionCURL()
 {
-    delete m_socketPoller;
-
     if ( m_handle )
         curl_multi_cleanup(m_handle);
+
+    // Note that this object could be used by curl_multi_cleanup(), so we can
+    // only destroy it after finishing with using libcurl.
+    delete m_socketPoller;
 
     // Global CURL cleanup if this is the last session
     --ms_activeSessions;

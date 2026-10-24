@@ -54,6 +54,10 @@ the micro version of this release. If this release represents a major
 or minor release, these changes will have to be performed manually at
 this point.
 
+Also review the version information in `build/bakefiles/version.bkl`: if any
+new APIs have been added in this release, the "current" and "age" fields must
+be incremented and "revision" reset to 0.
+
 Note that the best order depends on the release being prepared: for a
 development release, `docs/publicity/announce.txt` contains the list of the
 major changes since the last stable release and should be updated first, as
@@ -65,6 +69,10 @@ Here is the list of the files, for reference:
 * Update `docs/readme.txt`: version needs to be changed, content updated.
 * Update `docs/release.md`: also version and reset SHA-1 sums to zeroes.
 * Update `docs/changes.txt`: update the date on the release line.
+  For the development releases the list of changes is maintained in Git
+  notes as explained in that file itself. Replace these notes with the
+  actual changes following the instructions there (and don't forget to
+  restore them later).
 * Update the date in the manual (`docs/doxygen/mainpages/manual.h`).
 * Update the release announcement post in `docs/publicity/announce.txt`.
 * Update `docs/msw/binaries.md`: at least the version, but possibly also
@@ -74,8 +82,10 @@ Commit the changes and tag the release using your GPG key:
 
     git tag -s -m 'Tag X.Y.Z release' vX.Y.Z
 
-   Don't overwrite existing tags. For non-final releases use e.g. `X.Y.Z-rc1`
-   instead of `X.Y.Z`.
+Don't overwrite existing tags. For non-final releases use e.g. `X.Y.Z-rc1`
+instead of `X.Y.Z`, but make sure to use just `vX.Y.Z` tag for the release
+when publishing it as the web site update script depends on being able to
+find the release with this tag.
 
 ## Creating Release On GitHub
 
@@ -126,14 +136,14 @@ Update https://www.wxwidgets.org:
   anything else, the page will dynamically show the release files with the
   specified prefixes).
 * Add a news item. Usually a news item is enough but something
-  more can be called for for major releases
+  more can be called for major releases
 * Push the changes (or create the PR with them) to GitHub. Note that this will
   trigger the site rebuild which will fail if the release statistics are not
   available yet, so make sure to publish the release on GitHub first (or wait
   an hour for the next scheduled site rebuild to happen).
 
 Post `docs/publicity/announce.txt` at least to wx-announce@googlegroups.com and
-to wx-users.
+to wx-users using the standard "Announcing wxWidgets $VERSION release" subject.
 
 Submit a link to https://www.reddit.com/r/cpp or r/programming (depending on
 the release importance).
@@ -167,8 +177,9 @@ and from the root directory run
 
         autoconf -B build/autoconf_prepend-include
 
-* Restore the description of the Git notes use and create a skeleton section
-  for the next release in `docs/changes.txt`.
+* Update `docs/changes.txt`: for the stable releases, just create a new section
+  for the next release. For the other ones, restore the description of the Git
+  notes use removed in the pre-release step.
 
 
 ## MSW Visual Studio Official Builds

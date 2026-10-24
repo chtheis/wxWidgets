@@ -86,9 +86,7 @@ class WXDLLIMPEXP_BASE wxMsgCatalog
 public:
     // Ctor is protected, because CreateFromXXX functions must be used,
     // but destruction should be unrestricted
-#if !wxUSE_UNICODE
     ~wxMsgCatalog();
-#endif
 
     // load the catalog from disk or from data; caller is responsible for
     // deleting them if not NULL
@@ -168,6 +166,9 @@ public:
     // wxTranslationsLoader
     bool AddAvailableCatalog(const wxString& domain);
 #endif // wxABI_VERSION >= 3.2.3
+#if wxABI_VERSION >= 30206
+    bool AddAvailableCatalog(const wxString& domain, wxLanguage msgIdLanguage);
+#endif // wxABI_VERSION >= 3.2.5
 
     // add standard wxWidgets catalog ("wxstd")
     bool AddStdCatalog();
@@ -205,6 +206,15 @@ public:
     static const wxString& GetUntranslatedString(const wxString& str);
 
 private:
+    enum Translations
+    {
+      Translations_NotNeeded = -1,
+      Translations_NotFound = 0,
+      Translations_Found = 1
+    };
+
+    Translations DoAddCatalog(const wxString& domain, wxLanguage msgIdLanguage);
+
     // perform loading of the catalog via m_loader
     bool LoadCatalog(const wxString& domain, const wxString& lang, const wxString& msgIdLang);
 
@@ -214,6 +224,8 @@ private:
     // same as Set(), without taking ownership; only for wxLocale
     static void SetNonOwned(wxTranslations *t);
     friend class wxLocale;
+
+    wxString DoGetBestAvailableTranslation(const wxString& domain, const wxString& additionalAvailableLanguage);
 
 private:
     wxString m_lang;

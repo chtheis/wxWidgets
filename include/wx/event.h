@@ -134,9 +134,11 @@ inline wxEventFunction wxEventFunctionCast(void (wxEvtHandler::*func)(T&))
     // code using event table macros.
 
     wxGCC_WARNING_SUPPRESS_CAST_FUNCTION_TYPE()
+    wxCLANG_WARNING_SUPPRESS(cast-function-type)
 
     return reinterpret_cast<wxEventFunction>(func);
 
+    wxCLANG_WARNING_RESTORE(cast-function-type)
     wxGCC_WARNING_RESTORE_CAST_FUNCTION_TYPE()
 }
 
@@ -3530,6 +3532,10 @@ struct WXDLLIMPEXP_BASE wxEventTableEntry : public wxEventTableEntryBase
     // objects will have been initialized (including the event type constants)
     // and so it will have the correct value when it is needed
     const int& m_eventType;
+
+#if wxABI_VERSION >= 30206
+    wxDECLARE_DEFAULT_COPY_CTOR(wxEventTableEntry)
+#endif // wxABI_VERSION >= 3.2.6
 
 private:
     wxDECLARE_NO_ASSIGN_CLASS(wxEventTableEntry);

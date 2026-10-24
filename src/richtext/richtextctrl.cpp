@@ -1347,10 +1347,6 @@ void wxRichTextCtrl::OnChar(wxKeyEvent& event)
 
         bool processed = DeleteSelectedContent(& newPos);
 
-        int deletions = 0;
-        if (processed)
-            deletions ++;
-
         // Submit range in character positions, which are greater than caret positions,
         if (newPos < GetFocusObject()->GetOwnRange().GetEnd()+1)
         {
@@ -1363,7 +1359,6 @@ void wxRichTextCtrl::OnChar(wxKeyEvent& event)
                     if (CanDeleteRange(* GetFocusObject(), range.FromInternal()))
                     {
                         GetFocusObject()->DeleteRangeWithUndo(range, this, & GetBuffer());
-                        deletions ++;
                     }
                     processed = true;
                 }
@@ -1375,7 +1370,6 @@ void wxRichTextCtrl::OnChar(wxKeyEvent& event)
                 if (CanDeleteRange(* GetFocusObject(), range.FromInternal()))
                 {
                     GetFocusObject()->DeleteRangeWithUndo(range, this, & GetBuffer());
-                    deletions ++;
                 }
             }
         }
@@ -1588,10 +1582,6 @@ bool wxRichTextCtrl::ProcessBackKey(wxKeyEvent& event, int flags)
 
         bool processed = DeleteSelectedContent(& newPos);
 
-        int deletions = 0;
-        if (processed)
-            deletions ++;
-
         // Submit range in character positions, which are greater than caret positions,
         // so subtract 1 for deleted character and add 1 for conversion to character position.
         if (newPos > -1)
@@ -1605,7 +1595,6 @@ bool wxRichTextCtrl::ProcessBackKey(wxKeyEvent& event, int flags)
                     if (CanDeleteRange(* GetFocusObject(), range.FromInternal()))
                     {
                         GetFocusObject()->DeleteRangeWithUndo(range, this, & GetBuffer());
-                        deletions ++;
                     }
                     processed = true;
                 }
@@ -1617,7 +1606,6 @@ bool wxRichTextCtrl::ProcessBackKey(wxKeyEvent& event, int flags)
                 if (CanDeleteRange(* GetFocusObject(), range.FromInternal()))
                 {
                     GetFocusObject()->DeleteRangeWithUndo(range, this, & GetBuffer());
-                    deletions ++;
                 }
             }
         }
@@ -1687,8 +1675,10 @@ Left:       left one character
 Right:      right one character
 Up:         up one line
 Down:       down one line
-Ctrl-Left:  left one word
-Ctrl-Right: right one word
+Ctrl-Left:  left one word (start of line on macOS)
+Ctrl-Right: right one word (end of line on macOS)
+Alt-Left:   left one word (macOS only)
+Alt-Right:  right one word (macOS only)
 Ctrl-Up:    previous paragraph start
 Ctrl-Down:  next start of paragraph
 Home:       start of line
@@ -1716,17 +1706,35 @@ bool wxRichTextCtrl::KeyboardNavigate(int keyCode, int flags)
 
     if (keyCode == WXK_RIGHT || keyCode == WXK_NUMPAD_RIGHT)
     {
+#ifdef __WXMAC__
+        if (flags & wxRICHTEXT_CTRL_DOWN)
+            success = MoveToLineEnd(flags);
+        else if (flags & wxRICHTEXT_ALT_DOWN)
+            success = WordRight(1, flags);
+        else
+            success = MoveRight(1, flags);
+#else
         if (flags & wxRICHTEXT_CTRL_DOWN)
             success = WordRight(1, flags);
         else
             success = MoveRight(1, flags);
+#endif
     }
     else if (keyCode == WXK_LEFT || keyCode == WXK_NUMPAD_LEFT)
     {
+#ifdef __WXMAC__
+        if (flags & wxRICHTEXT_CTRL_DOWN)
+            success = MoveToLineStart(flags);
+        else if (flags & wxRICHTEXT_ALT_DOWN)
+            success = WordLeft(1, flags);
+        else
+            success = MoveLeft(1, flags);
+#else
         if (flags & wxRICHTEXT_CTRL_DOWN)
             success = WordLeft(1, flags);
         else
             success = MoveLeft(1, flags);
+#endif
     }
     else if (keyCode == WXK_UP || keyCode == WXK_NUMPAD_UP)
     {
@@ -1834,6 +1842,9 @@ bool wxRichTextCtrl::ExtendSelection(long oldPos, long newPos, int flags)
 /// This takes a _caret_ position.
 bool wxRichTextCtrl::ScrollIntoView(long position, int keyCode)
 {
+    if (!m_verticalScrollbarEnabled)
+        return false;
+
     wxRichTextLine* line = GetVisibleLineForCaretPosition(position);
 
     if (!line)

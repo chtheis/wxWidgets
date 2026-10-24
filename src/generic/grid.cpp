@@ -2702,7 +2702,6 @@ wxBEGIN_EVENT_TABLE( wxGrid, wxScrolledCanvas )
     EVT_SIZE( wxGrid::OnSize )
     EVT_DPI_CHANGED( wxGrid::OnDPIChanged )
     EVT_KEY_DOWN( wxGrid::OnKeyDown )
-    EVT_KEY_UP( wxGrid::OnKeyUp )
     EVT_CHAR ( wxGrid::OnChar )
 wxEND_EVENT_TABLE()
 
@@ -3048,11 +3047,7 @@ void wxGrid::Init()
     m_cellHighlightColour = wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOWTEXT);
     m_cellHighlightPenWidth = 2;
     m_cellHighlightROPenWidth = 1;
-    if ( wxSystemSettings::GetAppearance().IsDark() )
-        m_gridFrozenBorderColour = *wxWHITE;
-    else
-        m_gridFrozenBorderColour = *wxBLACK;
-
+    m_gridFrozenBorderColour = wxSystemSettings::SelectLightDark(*wxBLACK, *wxWHITE);
     m_gridFrozenBorderPenWidth = 2;
 
     m_canDragRowMove = false;
@@ -5154,7 +5149,7 @@ void wxGrid::DoEndMoveRow(int pos)
 {
     wxASSERT_MSG( m_dragMoveRowOrCol != -1, "no matching DoStartMoveRow?" );
 
-    if ( SendEvent(wxEVT_GRID_ROW_MOVE, -1, m_dragMoveRowOrCol) != Event_Vetoed )
+    if ( SendEvent(wxEVT_GRID_ROW_MOVE, m_dragMoveRowOrCol, -1) != Event_Vetoed )
         SetRowPos(m_dragMoveRowOrCol, pos);
 
     m_dragMoveRowOrCol = -1;
@@ -6301,7 +6296,9 @@ void wxGrid::OnKeyDown( wxKeyEvent& event )
 
 void wxGrid::OnKeyUp( wxKeyEvent& WXUNUSED(event) )
 {
-    // try local handlers
+    // This function is unused and not connected to the corresponding event in
+    // the event table, it is only kept to prevent changing ABI in this branch
+    // and doesn't exist at all in the later wxWidgets versions.
 }
 
 void wxGrid::OnChar( wxKeyEvent& event )

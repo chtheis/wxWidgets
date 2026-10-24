@@ -25,8 +25,6 @@
 #include "wx/filedlg.h"
 
 #ifndef WX_PRECOMP
-    #include "wx/msw/wrapcdlg.h"
-    #include "wx/msw/missing.h"
     #include "wx/utils.h"
     #include "wx/msgdlg.h"
     #include "wx/filefn.h"
@@ -46,6 +44,8 @@
 #include "wx/tokenzr.h"
 #include "wx/modalhook.h"
 
+#include "wx/msw/wrapshl.h"
+#include "wx/msw/wrapcdlg.h"
 #include "wx/msw/private/dpiaware.h"
 #include "wx/msw/private/filedialog.h"
 
@@ -61,8 +61,6 @@
     #include "wx/radiobut.h"
     #include "wx/stattext.h"
     #include "wx/textctrl.h"
-
-    #include "wx/msw/wrapshl.h"
 
     #include "wx/msw/private/cotaskmemptr.h"
 #endif // wxUSE_IFILEOPENDIALOG
@@ -1030,17 +1028,17 @@ wxFileDialog::wxFileDialog(wxWindow *parent,
     // NB: all style checks are done by wxFileDialogBase::Create
 
     m_data = NULL;
+}
+
+wxFileDialog::~wxFileDialog()
+{
+    delete m_data;
 
     // Must set to zero, otherwise the wx routines won't size the window
     // the second time you call the file dialog, because it thinks it is
     // already at the requested size.. (when centering)
     gs_rectDialog.x =
     gs_rectDialog.y = 0;
-}
-
-wxFileDialog::~wxFileDialog()
-{
-    delete m_data;
 }
 
 wxFileDialogMSWData& wxFileDialog::MSWData()

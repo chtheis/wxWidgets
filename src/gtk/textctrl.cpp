@@ -632,7 +632,7 @@ extern "C" {
 static void mark_set(GtkTextBuffer*, GtkTextIter*, GtkTextMark* mark, GSList** markList)
 {
     if (gtk_text_mark_get_name(mark) == NULL)
-        *markList = g_slist_prepend(*markList, mark);
+        *markList = g_slist_prepend(*markList, g_object_ref(mark));
 }
 }
 
@@ -708,7 +708,7 @@ wxTextCtrl::~wxTextCtrl()
         Thaw();
 
     if (m_anonymousMarkList)
-        g_slist_free(m_anonymousMarkList);
+        g_slist_free_full(m_anonymousMarkList, g_object_unref);
     if (m_afterLayoutId)
         g_source_remove(m_afterLayoutId);
 }
@@ -796,11 +796,8 @@ bool wxTextCtrl::Create( wxWindow *parent,
         // new, empty control, see https://github.com/wxWidgets/wxWidgets/issues/11409
         gtk_entry_get_text((GtkEntry*)m_text);
 
-#ifndef __WXGTK3__
         if (style & wxNO_BORDER)
             gtk_entry_set_has_frame((GtkEntry*)m_text, FALSE);
-#endif
-
     }
     g_object_ref(m_widget);
 
@@ -2231,7 +2228,7 @@ void wxTextCtrl::DoFreeze()
                 if (GTK_IS_TEXT_MARK(mark) && !gtk_text_mark_get_deleted(mark))
                     gtk_text_buffer_delete_mark(m_buffer, mark);
             }
-            g_slist_free(m_anonymousMarkList);
+            g_slist_free_full(m_anonymousMarkList, g_object_unref);
             m_anonymousMarkList = NULL;
         }
     }
